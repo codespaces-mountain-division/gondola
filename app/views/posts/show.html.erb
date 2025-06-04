@@ -17,6 +17,14 @@
           <span class="status draft">Draft</span>
         <% end %>
       </div>
+      
+      <% if @post.labels.present? %>
+        <div class="post-labels">
+          <% @post.labels.each do |label| %>
+            <span class="label-tag"><%= label %></span>
+          <% end %>
+        </div>
+      <% end %>
     </header>
     
     <div class="post-content">
@@ -102,6 +110,23 @@
   .status.draft {
     background: #fff3cd;
     color: #856404;
+  }
+  
+  .post-labels {
+    margin-top: 15px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .label-tag {
+    display: inline-block;
+    background: #e9ecef;
+    color: #495057;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
   }
   
   .post-content {
