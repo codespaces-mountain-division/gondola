@@ -1,0 +1,150 @@
+<% content_for :title, "All Posts" %>
+
+<div class="posts-index">
+  <div class="header">
+    <h1>All Posts</h1>
+    <%= link_to "Write New Post", new_post_path, class: "btn btn-primary" %>
+  </div>
+
+  <% if @posts.any? %>
+    <div class="posts-list">
+      <% @posts.each do |post| %>
+        <article class="post-card">
+          <div class="post-header">
+            <h2><%= link_to post.title, post_path(post) %></h2>
+            <div class="post-meta">
+              <span class="author">by <%= post.author %></span>
+              <span class="date"><%= post.created_at.strftime("%B %d, %Y") %></span>
+              <% if post.published? %>
+                <span class="status published">Published</span>
+              <% else %>
+                <span class="status draft">Draft</span>
+              <% end %>
+            </div>
+          </div>
+          
+          <div class="post-content">
+            <%= truncate(post.content, length: 200, separator: ' ') %>
+          </div>
+          
+          <div class="post-actions">
+            <%= link_to "Read More", post_path(post), class: "btn btn-secondary" %>
+            <%= link_to "Edit", edit_post_path(post), class: "btn btn-outline" %>
+          </div>
+        </article>
+      <% end %>
+    </div>
+  <% else %>
+    <div class="empty-state">
+      <h2>No posts yet</h2>
+      <p>Start by creating your first post!</p>
+      <%= link_to "Write Your First Post", new_post_path, class: "btn btn-primary" %>
+    </div>
+  <% end %>
+</div>
+
+<style>
+  .posts-index {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 20px;
+  }
+  
+  .post-card {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  
+  .post-header h2 {
+    margin: 0 0 10px 0;
+  }
+  
+  .post-header h2 a {
+    color: #333;
+    text-decoration: none;
+  }
+  
+  .post-header h2 a:hover {
+    color: #0066cc;
+  }
+  
+  .post-meta {
+    display: flex;
+    gap: 15px;
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 15px;
+  }
+  
+  .status {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+  }
+  
+  .status.published {
+    background: #d4edda;
+    color: #155724;
+  }
+  
+  .status.draft {
+    background: #fff3cd;
+    color: #856404;
+  }
+  
+  .post-content {
+    line-height: 1.6;
+    margin-bottom: 15px;
+  }
+  
+  .post-actions {
+    display: flex;
+    gap: 10px;
+  }
+  
+  .btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 14px;
+    cursor: pointer;
+    display: inline-block;
+  }
+  
+  .btn-primary {
+    background: #0066cc;
+    color: white;
+  }
+  
+  .btn-secondary {
+    background: #6c757d;
+    color: white;
+  }
+  
+  .btn-outline {
+    background: white;
+    color: #0066cc;
+    border: 1px solid #0066cc;
+  }
+  
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #666;
+  }
+</style>

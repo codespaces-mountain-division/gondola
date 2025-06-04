@@ -1,0 +1,156 @@
+<% content_for :title, @post.title %>
+
+<div class="post-show">
+  <nav class="breadcrumb">
+    <%= link_to "← All Posts", posts_path %>
+  </nav>
+  
+  <article class="post">
+    <header class="post-header">
+      <h1><%= @post.title %></h1>
+      <div class="post-meta">
+        <span class="author">by <%= @post.author %></span>
+        <span class="date"><%= @post.created_at.strftime("%B %d, %Y at %I:%M %p") %></span>
+        <% if @post.published? %>
+          <span class="status published">Published on <%= @post.published_at.strftime("%B %d, %Y") %></span>
+        <% else %>
+          <span class="status draft">Draft</span>
+        <% end %>
+      </div>
+    </header>
+    
+    <div class="post-content">
+      <%= simple_format(@post.content) %>
+    </div>
+    
+    <footer class="post-actions">
+      <div class="action-group">
+        <%= link_to "Edit Post", edit_post_path(@post), class: "btn btn-primary" %>
+        <% if @post.published? %>
+          <%= link_to "Unpublish", unpublish_post_path(@post), method: :patch, 
+                      class: "btn btn-outline", 
+                      data: { confirm: "Are you sure you want to unpublish this post?" } %>
+        <% else %>
+          <%= link_to "Publish", publish_post_path(@post), method: :patch, class: "btn btn-success" %>
+        <% end %>
+      </div>
+      
+      <div class="danger-zone">
+        <%= link_to "Delete Post", post_path(@post), method: :delete, 
+                    class: "btn btn-danger", 
+                    data: { confirm: "Are you sure? This action cannot be undone." } %>
+      </div>
+    </footer>
+  </article>
+</div>
+
+<style>
+  .post-show {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  
+  .breadcrumb {
+    margin-bottom: 30px;
+  }
+  
+  .breadcrumb a {
+    color: #0066cc;
+    text-decoration: none;
+  }
+  
+  .post {
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  
+  .post-header {
+    padding: 30px 0 20px 0;
+    border-bottom: 1px solid #eee;
+    margin-bottom: 30px;
+  }
+  
+  .post-header h1 {
+    margin: 0 0 15px 0;
+    font-size: 2.5em;
+    line-height: 1.2;
+    color: #333;
+  }
+  
+  .post-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    font-size: 14px;
+    color: #666;
+  }
+  
+  .status {
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+  }
+  
+  .status.published {
+    background: #d4edda;
+    color: #155724;
+  }
+  
+  .status.draft {
+    background: #fff3cd;
+    color: #856404;
+  }
+  
+  .post-content {
+    font-size: 16px;
+    line-height: 1.7;
+    margin-bottom: 40px;
+  }
+  
+  .post-actions {
+    border-top: 1px solid #eee;
+    padding-top: 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .action-group {
+    display: flex;
+    gap: 10px;
+  }
+  
+  .btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 14px;
+    cursor: pointer;
+    display: inline-block;
+  }
+  
+  .btn-primary {
+    background: #0066cc;
+    color: white;
+  }
+  
+  .btn-success {
+    background: #28a745;
+    color: white;
+  }
+  
+  .btn-outline {
+    background: white;
+    color: #6c757d;
+    border: 1px solid #6c757d;
+  }
+  
+  .btn-danger {
+    background: #dc3545;
+    color: white;
+  }
+</style>

@@ -12,6 +12,77 @@
   </head>
 
   <body>
+    <nav class="main-nav">
+      <%= link_to "Home", root_path, class: "nav-link" %>
+      <%= link_to "Posts", posts_path, class: "nav-link" %>
+      <%= link_to "Write New Post", new_post_path, class: "nav-link btn-primary" %>
+    </nav>
+    
+    <% if notice %>
+      <div class="alert alert-success"><%= notice %></div>
+    <% end %>
+    
+    <% if alert %>
+      <div class="alert alert-danger"><%= alert %></div>
+    <% end %>
+    
     <%= yield %>
+    
+    <style>
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: #f8f9fa;
+        color: #333;
+      }
+      
+      .main-nav {
+        background: white;
+        border-bottom: 1px solid #ddd;
+        padding: 15px 20px;
+        display: flex;
+        gap: 20px;
+        align-items: center;
+      }
+      
+      .nav-link {
+        text-decoration: none;
+        color: #333;
+        padding: 8px 16px;
+        border-radius: 4px;
+        transition: background-color 0.2s;
+      }
+      
+      .nav-link:hover {
+        background: #f8f9fa;
+      }
+      
+      .nav-link.btn-primary {
+        background: #0066cc;
+        color: white;
+      }
+      
+      .nav-link.btn-primary:hover {
+        background: #0052a3;
+      }
+      
+      .alert {
+        padding: 12px 20px;
+        margin: 0;
+        text-align: center;
+      }
+      
+      .alert-success {
+        background: #d4edda;
+        color: #155724;
+        border-bottom: 1px solid #c3e6cb;
+      }
+      
+      .alert-danger {
+        background: #f8d7da;
+        color: #721c24;
+        border-bottom: 1px solid #f5c6cb;
+      }
+    </style>
   </body>
 </html>
