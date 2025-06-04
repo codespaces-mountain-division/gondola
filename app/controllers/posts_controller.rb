@@ -55,6 +55,22 @@ class PostsController < ApplicationController
   end
 
   def post_params
-    params.require(:post).permit(:title, :content, :author)
+    permitted_params = params.require(:post).permit(:title, :content, :author, :labels)
+    
+    # Process labels from comma-separated string to array
+    if permitted_params[:labels].present?
+      if permitted_params[:labels].is_a?(String)
+        # Convert comma-separated string to array
+        permitted_params[:labels] = permitted_params[:labels].split(',').map(&:strip).reject(&:blank?)
+      else
+        # Already an array, just clean it up
+        permitted_params[:labels] = permitted_params[:labels].reject(&:blank?)
+      end
+    else
+      # Ensure empty labels is an empty array
+      permitted_params[:labels] = []
+    end
+    
+    permitted_params
   end
 end
