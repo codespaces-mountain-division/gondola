@@ -1,0 +1,148 @@
+name: Documentation Management
+
+on:
+  # Trigger knowledge base update when documentation files change
+  push:
+    branches: [main, master]
+    paths: 
+      - '**/*.md'
+      - '**/*.markdown'
+  
+  # Trigger drift detection on pull requests
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# Set permissions for the workflow
+permissions:
+  contents: write          # Required to update knowledge base file
+  pull-requests: write     # Required to post comments on PRs
+  actions: read           # Required to read workflow information
+
+jobs:
+  # Job 1: Update the documentation knowledge base when docs change
+  update-knowledge-base:
+    name: Update Documentation Knowledge Base
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0  # Get full history for better analysis
+      
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.1'
+          bundler-cache: false
+      
+      - name: Install dependencies
+        run: |
+          gem install net-http
+          gem install json
+      
+      - name: Classify documentation files
+        uses: ./.github/actions/docs-knowledge-base-updater
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          copilot-token: ${{ secrets.GITHUB_TOKEN }}
+          knowledge-base-path: '.github/docs-knowledge-base.json'
+          docs-patterns: |
+            **/*.md
+            **/*.markdown
+            **/README*
+            **/CHANGELOG*
+            **/CONTRIBUTING*
+          exclude-patterns: |
+            node_modules/**
+            .git/**
+            vendor/**
+            .github/workflows/**
+            tmp/**
+            log/**
+      
+      - name: Commit knowledge base updates
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .github/docs-knowledge-base.json
+          if git diff --staged --quiet; then
+            echo "No changes to knowledge base"
+          else
+            git commit -m "Update documentation knowledge base [skip ci]"
+            git push
+          fi
+
+  # Job 2: Analyze pull requests for documentation drift
+  detect-drift:
+    name: Detect Documentation Drift
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0  # Get full history for PR analysis
+      
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.1'
+          bundler-cache: false
+      
+      - name: Install dependencies
+        run: |
+          gem install net-http
+          gem install json
+      
+      - name: Check for knowledge base
+        id: check-kb
+        run: |
+          if [ -f ".github/docs-knowledge-base.json" ]; then
+            echo "knowledge-base-exists=true" >> $GITHUB_OUTPUT
+            echo "Knowledge base found"
+          else
+            echo "knowledge-base-exists=false" >> $GITHUB_OUTPUT
+            echo "No knowledge base found - will skip drift detection"
+          fi
+      
+      - name: Analyze documentation drift
+        if: steps.check-kb.outputs.knowledge-base-exists == 'true'
+        uses: ./.github/actions/docs-drift-detective
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          copilot-token: ${{ secrets.GITHUB_TOKEN }}
+          knowledge-base-path: '.github/docs-knowledge-base.json'
+          sensitivity-threshold: '2'
+          comment-mode: 'comment'
+          max-docs-to-analyze: '20'
+      
+      - name: Post setup guidance (if no knowledge base)
+        if: steps.check-kb.outputs.knowledge-base-exists == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 📚 Documentation Drift Detection Setup
+              
+              👋 This PR is the first to trigger documentation drift detection!
+              
+              **Next Steps:**
+              1. Merge this PR to trigger the knowledge base creation
+              2. The system will automatically classify your documentation files
+              3. Future PRs will get automatic drift detection
+              
+              **What happens next:**
+              - Documentation files will be analyzed and classified
+              - A knowledge base file will be created at \`.github/docs-knowledge-base.json\`
+              - Future pull requests will automatically check for documentation drift
+              
+              This is a one-time setup message. 🚀`
+            })

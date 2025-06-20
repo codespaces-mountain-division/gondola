@@ -1,0 +1,75 @@
+name: 'Documentation Drift Detective'
+description: 'Analyzes pull request changes to detect documentation that may need updates'
+author: 'GitHub'
+
+inputs:
+  github-token:
+    description: 'GitHub token for API access'
+    required: true
+    default: ${{ github.token }}
+  
+  copilot-token:
+    description: 'GitHub Copilot API token for analysis'
+    required: false
+    default: ${{ github.token }}
+  
+  knowledge-base-path:
+    description: 'Path to the documentation knowledge base file'
+    required: false
+    default: '.github/docs-knowledge-base.json'
+  
+  sensitivity-threshold:
+    description: 'Minimum code sensitivity level to trigger analysis (0-3)'
+    required: false
+    default: '2'
+  
+  comment-mode:
+    description: 'How to post comments (comment, review, annotation)'
+    required: false
+    default: 'comment'
+  
+  max-docs-to-analyze:
+    description: 'Maximum number of docs to analyze per PR'
+    required: false
+    default: '20'
+
+outputs:
+  docs-analyzed:
+    description: 'Number of documentation files analyzed'
+    value: ${{ steps.analyze.outputs.docs-analyzed }}
+  
+  potential-updates-found:
+    description: 'Number of potential documentation updates identified'
+    value: ${{ steps.analyze.outputs.potential-updates-found }}
+  
+  high-priority-updates:
+    description: 'Number of high-priority updates found'
+    value: ${{ steps.analyze.outputs.high-priority-updates }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.1'
+        bundler-cache: false
+    
+    - name: Analyze Documentation Drift
+      id: analyze
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        COPILOT_TOKEN: ${{ inputs.copilot-token }}
+      run: |
+        ruby ${{ github.action_path }}/analyze_docs_drift.rb \
+          --repository "${{ github.repository }}" \
+          --pr-number "${{ github.event.pull_request.number }}" \
+          --knowledge-base-path "${{ inputs.knowledge-base-path }}" \
+          --sensitivity-threshold "${{ inputs.sensitivity-threshold }}" \
+          --comment-mode "${{ inputs.comment-mode }}" \
+          --max-docs "${{ inputs.max-docs-to-analyze }}"
+
+branding:
+  icon: 'alert-triangle'
+  color: 'orange'
