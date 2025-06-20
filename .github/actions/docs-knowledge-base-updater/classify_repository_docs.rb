@@ -7,6 +7,7 @@ require 'base64'
 require 'optparse'
 require 'fileutils'
 require 'pathname'
+require 'time'
 
 class RepositoryDocumentationClassifier
   def initialize(options = {})

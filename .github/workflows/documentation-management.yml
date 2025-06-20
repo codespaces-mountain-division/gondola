@@ -47,7 +47,7 @@ jobs:
         uses: ./.github/actions/docs-knowledge-base-updater
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          copilot-token: ${{ secrets.GITHUB_TOKEN }}
+          copilot-token: ${{ secrets.COPILOT_TOKEN || secrets.GITHUB_TOKEN }}
           knowledge-base-path: '.github/docs-knowledge-base.json'
           docs-patterns: |
             **/*.md
@@ -115,7 +115,7 @@ jobs:
         uses: ./.github/actions/docs-drift-detective
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          copilot-token: ${{ secrets.GITHUB_TOKEN }}
+          copilot-token: ${{ secrets.COPILOT_TOKEN || secrets.GITHUB_TOKEN }}
           knowledge-base-path: '.github/docs-knowledge-base.json'
           sensitivity-threshold: '2'
           comment-mode: 'comment'
