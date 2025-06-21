@@ -1,34 +1,39 @@
 {
   "repository": "codespaces-mountain-division/gondola",
-  "generated_at": "2025-06-21T01:28:14+00:00",
-  "total_files": 4,
-  "avg_code_sensitivity": 2.0,
-  "avg_staleness_risk": 2.5,
-  "avg_confidence": 0.85,
+  "generated_at": "2025-06-21T03:28:20+00:00",
+  "total_files": 6,
+  "avg_code_sensitivity": 1.33,
+  "avg_staleness_risk": 2.0,
+  "avg_confidence": 0.84,
   "high_sensitivity_files": 1,
   "high_staleness_files": 2,
   "high_risk_files": 3,
   "sensitivity_distribution": {
     "2": 2,
+    "1": 1,
     "3": 1,
-    "1": 1
+    "0": 2
   },
   "staleness_distribution": {
     "3": 2,
-    "2": 2
+    "2": 2,
+    "1": 2
   },
   "top_patterns": {
-    "Documentation/Process": 2,
-    "Database/Schema": 2,
+    "Documentation/Process": 3,
+    "Database/Schema": 3,
     "Infrastructure/DevOps": 1,
     "API/Routing": 1,
-    "Frontend/UI": 1
+    "Frontend/UI": 1,
+    "Security/Compliance": 1
   },
   "top_categories": {
     "Setup Guide (Comprehensive)": 1,
-    "Architecture Deep-Dive": 1,
-    "Process Documentation": 1,
-    "Reference Documentation": 1
+    "Architecture Overview": 1,
+    "Tutorial (Step-by-Step)": 1,
+    "README": 1,
+    "Reference Documentation": 1,
+    "Process Documentation": 1
   },
   "files": [
     {
@@ -47,7 +52,23 @@
         "repository configuration",
         "automation setup"
       ],
-      "classified_at": "2025-06-21T01:28:13+00:00"
+      "classified_at": "2025-06-21T03:28:19+00:00"
+    },
+    {
+      "path": "APP_GUIDE.md",
+      "sha": "8f789aeaf611a75ea60683a89e5dc0c9882556fd",
+      "code_sensitivity_level": 1,
+      "staleness_risk": 2,
+      "technical_patterns": [
+        "Database/Schema"
+      ],
+      "doc_category": "Architecture Overview",
+      "confidence_score": 0.75,
+      "key_indicators": [
+        "general description of Posts model",
+        "no specific implementation details"
+      ],
+      "classified_at": "2025-06-21T03:28:19+00:00"
     },
     {
       "path": "POSTS_GUIDE.md",
@@ -59,30 +80,30 @@
         "Database/Schema",
         "Frontend/UI"
       ],
-      "doc_category": "Architecture Deep-Dive",
+      "doc_category": "Tutorial (Step-by-Step)",
       "confidence_score": 0.95,
       "key_indicators": [
         "RESTful routes",
-        "database schema",
-        "model validations"
+        "model validations",
+        "CRUD operations"
       ],
-      "classified_at": "2025-06-21T01:28:13+00:00"
+      "classified_at": "2025-06-21T03:28:19+00:00"
     },
     {
       "path": "README.md",
       "sha": "da7373a018e85918e2473dea7570a9f38eab9714",
-      "code_sensitivity_level": 1,
-      "staleness_risk": 2,
+      "code_sensitivity_level": 0,
+      "staleness_risk": 1,
       "technical_patterns": [
         "Documentation/Process"
       ],
-      "doc_category": "Process Documentation",
+      "doc_category": "README",
       "confidence_score": 0.8,
       "key_indicators": [
-        "workflow testing",
-        "documentation drift"
+        "dummy repo description",
+        "no technical details"
       ],
-      "classified_at": "2025-06-21T01:28:13+00:00"
+      "classified_at": "2025-06-21T03:28:19+00:00"
     },
     {
       "path": "docs/database.md",
@@ -93,12 +114,29 @@
         "Database/Schema"
       ],
       "doc_category": "Reference Documentation",
-      "confidence_score": 0.75,
+      "confidence_score": 0.85,
       "key_indicators": [
-        "database-related notes",
-        "missing feature labeling"
+        "mentions database features",
+        "specific implementation detail (labelling)"
       ],
-      "classified_at": "2025-06-21T01:28:13+00:00"
+      "classified_at": "2025-06-21T03:28:19+00:00"
+    },
+    {
+      "path": "docs/team.md",
+      "sha": "99c5383820f9ef4dd030c6e914c6305c052253ac",
+      "code_sensitivity_level": 0,
+      "staleness_risk": 1,
+      "technical_patterns": [
+        "Documentation/Process",
+        "Security/Compliance"
+      ],
+      "doc_category": "Process Documentation",
+      "confidence_score": 0.8,
+      "key_indicators": [
+        "team roles",
+        "non-technical descriptions"
+      ],
+      "classified_at": "2025-06-21T03:28:19+00:00"
     }
   ]
 }
