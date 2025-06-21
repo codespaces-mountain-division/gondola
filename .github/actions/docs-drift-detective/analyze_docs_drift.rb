@@ -353,7 +353,7 @@ class DocumentationDriftDetective
     end
 
     <<~PROMPT
-      You are a documentation drift detection expert. Analyze a pull request and determine which documentation files might need updates based on the code changes.
+      You are a documentation drift detection expert. Determine which documentation files might contain OUTDATED content due to the specific code changes in this PR.
 
       ## Pull Request Changes
       **Files modified:** #{changed_files.length} files
@@ -367,31 +367,37 @@ class DocumentationDriftDetective
       ## Documentation Files to Evaluate
       #{JSON.pretty_generate(docs_summary)}
 
-      ## Task
-      For each documentation file, determine if it's likely to be affected by these PR changes. Consider:
-      - Technical patterns covered by the doc vs. areas changed in PR
-      - File path relationships (e.g., docs about specific modules/components)
-      - Documentation category and how it relates to the changes
-      - Even indirect relationships (e.g., database changes affecting setup guides)
-      - Configuration changes that might affect deployment or setup documentation
-      - API changes that might affect integration documentation
+      ## FOCUS ON DRIFT DETECTION
+      
+      Only flag documentation that is likely to contain OUTDATED information due to these specific changes. Ask yourself:
+      
+      1. **Does this doc likely reference the changed files/functions?**
+      2. **Would existing examples or instructions become incorrect?**
+      3. **Are there specific APIs/endpoints that might now be wrong?**
+      4. **Do configuration steps reference things that changed?**
+      
+      **DO NOT flag docs just because:**
+      - They could benefit from general improvements
+      - They're missing information (unless it was removed in this PR)
+      - They could have more examples added
+      - They're in a related technical area but don't reference the changed code
 
       **Analysis strategy**: #{get_ai_analysis_strategy(@analysis_scope)}
 
-      Respond with a JSON array of potentially affected documentation:
+      Respond with a JSON array of documentation that likely contains OUTDATED content:
       ```json
       [
         {
           "path": "docs/api.md",
           "likelihood": "high",
-          "reasoning": "Documents API endpoints that may be affected by controller changes",
+          "reasoning": "Contains code examples using AuthController methods that were renamed in this PR",
           "priority": 3
         }
       ]
       ```
 
-      Likelihood: "high", "medium", "low" (include "low" if there's any reasonable chance of impact)
-      Priority: 1-3 (3 = most important to check)
+      Likelihood: "high" (likely contains outdated code/references), "medium" (might contain outdated info), "low" (small chance of outdated content)
+      Priority: 1-3 (3 = most important to check for outdated content)
     PROMPT
   end
 
@@ -553,7 +559,7 @@ class DocumentationDriftDetective
     end
 
     <<~PROMPT
-      You are a documentation quality expert. Analyze documentation files to identify specific content that may be outdated based on recent code changes.
+      You are a documentation drift detection expert. Your job is to identify content that has become OUTDATED due to the specific code changes in this PR. 
 
       ## Code Changes in This PR
       **Modified files:**
@@ -562,37 +568,60 @@ class DocumentationDriftDetective
       ## Documentation Files to Analyze
       #{JSON.pretty_generate(docs_for_analysis)}
 
-      ## Task
-      For each documentation file, carefully read the content and identify specific sections, examples, or statements that might be outdated due to the code changes. Focus on:
+      ## CRITICAL INSTRUCTIONS
       
-      1. **Code examples** that might reference changed files/functions
-      2. **Configuration instructions** that might be affected
-      3. **API documentation** that might need updates
-      4. **Process descriptions** that might have changed
-      5. **File/module references** that might be stale
+      **ONLY flag content that is OUTDATED due to these specific code changes.**
+      
+      **DO NOT suggest:**
+      - General improvements or enhancements
+      - Additional content that could be added
+      - Style or formatting changes
+      - Missing sections that were never there
+      - Best practices that aren't related to the code changes
+      
+      **DO flag content that:**
+      1. **References specific files/functions that were modified** - Look for exact matches
+      2. **Contains code examples using the changed code** - Check for outdated syntax/APIs
+      3. **Describes processes that the code changes modified** - Only if the docs explicitly describe the old process
+      4. **Has configuration steps that no longer work** - Due to the specific changes made
+      5. **Contains outdated URLs, paths, or endpoints** - That were changed in this PR
 
-      For each potential issue, provide:
-      - Specific line/section reference
-      - What might be outdated
-      - Suggested action
+      ## RESPONSE FORMAT REQUIREMENTS
+      
+      For each issue you identify:
+      - `section_name`: Keep it simple - just the section name, NO line numbers
+      - `line_reference`: Leave empty "" (do not make up line numbers)
+      - `outdated_content`: ONE clear sentence describing what is now wrong
+      - `suggested_change`: ONE clear sentence describing how to fix it
+      - Keep both sentences concise and actionable
 
-      Respond with JSON:
+      **If the documentation doesn't contain anything that's specifically outdated by these changes, return an empty issues array.**
+
+      Respond with JSON using this EXACT schema:
       ```json
       [
         {
           "path": "docs/api.md",
           "issues": [
             {
-              "section": "Authentication section, lines 45-60",
-              "issue": "References old AuthController methods that may have changed",
-              "severity": "high",
-              "suggestion": "Verify authentication flow and update examples"
+              "section_name": "Authentication section",
+              "line_reference": "",
+              "outdated_content": "Contains code example using AuthController.authenticate() method which was renamed to verify()",
+              "suggested_change": "Update the code example to use AuthController.verify() instead of authenticate()",
+              "severity": "high"
             }
           ],
           "overall_priority": "high"
         }
       ]
       ```
+
+      **Required fields:**
+      - `section_name`: Name of the section (NO line numbers unless you can see them in the content)
+      - `line_reference`: Leave empty "" unless you can identify specific lines from the provided content
+      - `outdated_content`: ONE sentence describing what is outdated
+      - `suggested_change`: ONE sentence describing the fix
+      - `severity`: "high" (broken examples/links), "medium" (misleading info), "low" (minor inaccuracies)
 
       Severity: "high", "medium", "low"
       Priority: "high", "medium", "low"
@@ -613,9 +642,48 @@ class DocumentationDriftDetective
         json_content = match[1].strip if match
       end
       
-      JSON.parse(json_content || response)
+      parsed_response = JSON.parse(json_content || response)
+      
+      # Validate and normalize the schema
+      normalized_response = parsed_response.map do |result|
+        # Ensure required fields exist
+        result['path'] = result['path'] || 'unknown'
+        result['overall_priority'] = result['overall_priority'] || 'medium'
+        
+        # Normalize issues array
+        if result['issues']
+          result['issues'] = result['issues'].map do |issue|
+            normalized_issue = {
+              'section_name' => issue['section_name'] || issue['section'] || 'Unknown section',
+              'line_reference' => issue['line_reference'] || '',
+              'outdated_content' => issue['outdated_content'] || issue['issue'] || 'Content may be outdated',
+              'suggested_change' => issue['suggested_change'] || issue['suggestion'] || 'Review and update as needed',
+              'severity' => issue['severity'] || 'medium'
+            }
+            
+            # Validate sentence length (should be reasonable)
+            if normalized_issue['outdated_content'].length > 200
+              puts "⚠️  Long outdated_content field detected - consider shortening"
+            end
+            if normalized_issue['suggested_change'].length > 200
+              puts "⚠️  Long suggested_change field detected - consider shortening"
+            end
+            
+            normalized_issue
+          end
+        else
+          result['issues'] = []
+        end
+        
+        result
+      end
+      
+      puts "✅ Successfully parsed and normalized analysis response with #{normalized_response.length} files"
+      puts "📊 Total issues found: #{normalized_response.sum { |r| r['issues'].length }}"
+      normalized_response
     rescue JSON::ParserError => e
       puts "⚠️  Error parsing analysis response: #{e.message}"
+      puts "📋 Raw response preview: #{response[0..200]}#{response.length > 200 ? '...' : ''}"
       []
     end
   end
@@ -747,26 +815,26 @@ class DocumentationDriftDetective
         issue = item[:issue]
         
         # Parse section information to build a specific link
-        section_text = issue['section']
-        line_range = nil
+        section_name = issue['section_name'] || issue['section'] || 'Unknown section'
+        line_reference = issue['line_reference'] || ''
         
-        # Extract line information if present
-        if section_text&.match?(/lines?\s+\d+/i)
-          line_match = section_text.match(/(.*?),?\s*(lines?\s+\d+(?:-\d+)?)/i)
-          if line_match
-            section_name = line_match[1].strip
-            line_range = line_match[2]
+        # Build the file link
+        if line_reference && !line_reference.empty?
+          # Try to extract line numbers from line_reference
+          if line_reference.match?(/\d+/)
+            issue_link = build_file_link(file_path, section_name, line_reference)
           else
-            section_name = section_text
+            issue_link = build_file_link(file_path, section_name, nil)
           end
         else
-          section_name = section_text
+          issue_link = build_file_link(file_path, section_name, nil)
         end
         
-        # Build the file link with line numbers if available
-        issue_link = build_file_link(file_path, section_name, line_range)
+        # Format using the new structured fields
+        outdated_content = issue['outdated_content'] || issue['issue'] || 'Content may be outdated'
+        suggested_change = issue['suggested_change'] || issue['suggestion'] || 'Review and update as needed'
         
-        content << "* #{issue_link}: #{issue['suggestion']}\n"
+        content << "* #{issue_link}: #{outdated_content} #{suggested_change}\n"
       end
       
       content << "\n"
@@ -902,7 +970,7 @@ class DocumentationDriftDetective
     }
   end
 
-  def build_file_link(file_path, section_text = nil, line_range = nil)
+  def build_file_link(file_path, section_name = nil, line_reference = nil)
     # Get PR info for the head branch
     pr_info = @pr_info ||= get_pr_info
     return file_path unless pr_info
@@ -910,24 +978,24 @@ class DocumentationDriftDetective
     branch = pr_info[:head_branch]
     base_url = "https://github.com/#{@repository}/blob/#{branch}/#{file_path}"
     
-    if line_range && line_range.match?(/(\d+)/)
-      # Extract line numbers from text like "lines 5-10" or "line 42"
-      lines = line_range.scan(/\d+/)
-      if lines.length == 2
-        url = "#{base_url}#L#{lines[0]}-L#{lines[1]}"
-      elsif lines.length == 1
-        url = "#{base_url}#L#{lines[0]}"
-      else
-        url = base_url
-      end
-    else
-      url = base_url
-    end
+    # Handle line references more simply
+    url = if line_reference && line_reference.match?(/\d+/)
+            # Extract just the numbers and create line anchor
+            lines = line_reference.scan(/\d+/)
+            if lines.length == 2
+              "#{base_url}#L#{lines[0]}-L#{lines[1]}"
+            elsif lines.length == 1
+              "#{base_url}#L#{lines[0]}"
+            else
+              base_url
+            end
+          else
+            base_url
+          end
     
-    display_text = if section_text && line_range
-                     "#{File.basename(file_path)} - #{section_text}, #{line_range}"
-                   elsif section_text
-                     "#{File.basename(file_path)} - #{section_text}"
+    # Create cleaner display text
+    display_text = if section_name && !section_name.empty?
+                     "#{File.basename(file_path)} (#{section_name})"
                    else
                      File.basename(file_path)
                    end
@@ -1208,15 +1276,15 @@ class DocumentationDriftDetective
   def get_ai_analysis_strategy(analysis_scope)
     case analysis_scope
     when 'narrow'
-      'Be conservative - only include documentation with direct, obvious relationships to the code changes. Avoid false positives.'
+      'Be very conservative - only flag documentation with direct, obvious references to the changed code. Focus on broken examples and clear factual errors.'
     when 'medium'
-      'Be balanced - include documentation with clear relationships and some indirect relationships. Moderate inclusion threshold.'
+      'Be selective - flag documentation that likely contains outdated references to the changed code. Focus on drift, not improvements.'
     when 'wide'
-      'Be comprehensive - include documentation with direct and indirect relationships. When in doubt, err on the side of inclusion.'
+      'Be thorough - include documentation that might contain outdated content due to direct or indirect code relationships. Still focus on what\'s outdated, not what\'s missing.'
     when 'aggressive'
-      'Be exhaustive - include any documentation that could potentially be affected, even with weak relationships. Minimize false negatives.'
+      'Be comprehensive - include any documentation that could potentially contain outdated information. But always focus on existing content that may now be wrong, not content that could be added.'
     else
-      'Use balanced judgment when determining relationships between code changes and documentation.'
+      'Focus on detecting outdated content rather than suggesting improvements. Only flag what may now be factually incorrect.'
     end
   end
 end
