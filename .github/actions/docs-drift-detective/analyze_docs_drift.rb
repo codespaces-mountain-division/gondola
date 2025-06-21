@@ -518,7 +518,7 @@ class DocumentationDriftDetective
     # Add suppressed low confidence section if there are low priority items
     if low_issues.any?
       content << "\n<details>\n"
-      content << "<summary>Comments suppressed due to low confidence (#{low_issues.length})</summary>\n\n"
+      content << "<summary>Suggestions suppressed due to low priority (#{low_issues.length})</summary>\n\n"
       content << format_issues_by_file(low_issues)
       content << "</details>\n"
     end
