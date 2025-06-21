@@ -11,6 +11,20 @@ on:
   # Trigger drift detection on pull requests
   pull_request:
     types: [opened, synchronize, reopened]
+  
+  # Allow manual triggering with custom scope
+  workflow_dispatch:
+    inputs:
+      analysis-scope:
+        description: 'Analysis scope for documentation drift detection'
+        required: false
+        default: 'medium'
+        type: choice
+        options:
+          - narrow
+          - medium
+          - wide
+          - aggressive
 
 # Set permissions for the workflow
 permissions:
@@ -122,6 +136,7 @@ jobs:
           sensitivity-threshold: '2'
           comment-mode: 'comment'
           max-docs-to-analyze: '20'
+          analysis-scope: ${{ github.event.inputs.analysis-scope || 'medium' }}  # Use input or default
       
       - name: Post setup guidance (if no knowledge base)
         if: steps.check-kb.outputs.knowledge-base-exists == 'false'

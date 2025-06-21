@@ -32,6 +32,11 @@ inputs:
     description: 'Maximum number of docs to analyze per PR'
     required: false
     default: '20'
+  
+  analysis-scope:
+    description: 'Analysis scope (narrow, medium, wide, aggressive)'
+    required: false
+    default: 'medium'
 
 outputs:
   docs-analyzed:
@@ -68,7 +73,8 @@ runs:
           --knowledge-base-path "${{ inputs.knowledge-base-path }}" \
           --sensitivity-threshold "${{ inputs.sensitivity-threshold }}" \
           --comment-mode "${{ inputs.comment-mode }}" \
-          --max-docs "${{ inputs.max-docs-to-analyze }}"
+          --max-docs "${{ inputs.max-docs-to-analyze }}" \
+          --analysis-scope "${{ inputs.analysis-scope || inputs.net-width || 'medium' }}"
 
 branding:
   icon: 'alert-triangle'

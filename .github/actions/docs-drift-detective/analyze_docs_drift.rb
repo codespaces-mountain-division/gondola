@@ -16,6 +16,13 @@ class DocumentationDriftDetective
     @sensitivity_threshold = (options[:sensitivity_threshold] || 2).to_i
     @comment_mode = options[:comment_mode] || 'comment'
     @max_docs = (options[:max_docs] || 20).to_i
+    @analysis_scope = (options[:analysis_scope] || options[:net_width] || 'medium').to_s.downcase
+    
+    # Validate analysis_scope parameter
+    unless ['narrow', 'medium', 'wide', 'aggressive'].include?(@analysis_scope)
+      puts "⚠️  Invalid analysis-scope '#{@analysis_scope}', defaulting to 'medium'"
+      @analysis_scope = 'medium'
+    end
     
     validate_inputs!
   end
@@ -115,24 +122,184 @@ class DocumentationDriftDetective
   def identify_affected_documentation(pr_diff, knowledge_base)
     puts "📋 Starting documentation drift analysis..."
     puts "🔍 Sensitivity threshold: #{@sensitivity_threshold} (analyzing docs with code-sensitivity >= #{@sensitivity_threshold})"
+    puts "📏 Analysis scope: #{@analysis_scope} (#{get_analysis_scope_description(@analysis_scope)})"
     puts "📊 Total files in knowledge base: #{knowledge_base[:files].length}"
     
-    # Get docs that might be affected by this PR
-    candidate_docs = knowledge_base[:files].select do |doc|
+    # Get primary candidates that meet the sensitivity threshold
+    primary_candidates = knowledge_base[:files].select do |doc|
       doc[:code_sensitivity_level] >= @sensitivity_threshold
     end
     
-    puts "🎯 Candidate docs meeting sensitivity threshold: #{candidate_docs.length}"
-    if candidate_docs.length > 0
-      puts "📄 Candidate documentation files:"
-      candidate_docs.each do |doc|
+    # Get secondary candidates: lower sensitivity docs with potentially relevant technical patterns
+    secondary_candidates = []
+    if should_include_secondary_candidates? && @sensitivity_threshold > 0
+      # Identify technical patterns from changed files
+      changed_patterns = extract_technical_patterns_from_changes(pr_diff)
+      
+      if changed_patterns.any?
+        secondary_candidates = knowledge_base[:files].select do |doc|
+          doc[:code_sensitivity_level] < @sensitivity_threshold &&
+          doc[:technical_patterns] &&
+          (doc[:technical_patterns] & changed_patterns).any?
+        end
+      end
+    end
+    
+    candidate_docs = primary_candidates + secondary_candidates
+    
+    # Add path-based candidates based on analysis scope
+    path_candidates = []
+    if should_include_path_candidates?
+      changed_paths = pr_diff[:modified_paths]
+      
+      # Extract directory/module names from changed files
+      changed_directories = changed_paths.map do |path|
+        parts = path.split('/')
+        # Get directory names and base filenames (without extensions)
+        dir_parts = parts[0..-2] # All but the last part (filename)
+        file_part = File.basename(parts.last, '.*') # Filename without extension
+        [dir_parts, file_part].flatten.compact
+      end.flatten.uniq
+      
+      # Find docs that mention changed paths/modules in their path or content patterns
+      if changed_directories.any?
+        path_candidates = knowledge_base[:files].select do |doc|
+          !candidate_docs.include?(doc) &&
+          changed_directories.any? do |changed_part|
+            # Match if doc path contains the changed directory/file name
+            doc[:path].downcase.include?(changed_part.downcase) ||
+            # Or if key indicators mention the changed component
+            (doc[:key_indicators] && doc[:key_indicators].any? { |indicator| 
+              indicator.downcase.include?(changed_part.downcase) 
+            })
+          end
+        end
+        
+        # Limit path candidates based on analysis scope
+        max_path_candidates = get_max_path_candidates(@analysis_scope)
+        path_candidates = path_candidates.first(max_path_candidates)
+      end
+    end
+    
+    candidate_docs += path_candidates
+    
+    puts "🎯 Primary candidates (sensitivity >= #{@sensitivity_threshold}): #{primary_candidates.length}"
+    if primary_candidates.length > 0
+      puts "📄 Primary candidate files:"
+      primary_candidates.each do |doc|
         puts "   - #{doc[:path]} (sensitivity: #{doc[:code_sensitivity_level]}, staleness: #{doc[:staleness_risk_level]})"
       end
     end
     
-    # If no high-sensitivity docs, return early
+    if secondary_candidates.length > 0
+      puts "🔍 Secondary candidates (lower sensitivity, relevant patterns): #{secondary_candidates.length}"
+      puts "📄 Secondary candidate files:"
+      secondary_candidates.each do |doc|
+        matching_patterns = doc[:technical_patterns] & extract_technical_patterns_from_changes(pr_diff)
+        puts "   - #{doc[:path]} (sensitivity: #{doc[:code_sensitivity_level]}, patterns: #{matching_patterns.join(', ')})"
+      end
+    end
+    
+    if path_candidates.length > 0
+      puts "🛤️  Path-based candidates (directory/module name matches): #{path_candidates.length}"
+      puts "📄 Path-based candidate files:"
+      path_candidates.each do |doc|
+        puts "   - #{doc[:path]} (sensitivity: #{doc[:code_sensitivity_level]}, matched components)"
+      end
+    end
+    
+    # Add tertiary candidates for edge cases based on analysis scope
+    tertiary_candidates = []
+    
+    if should_include_tertiary_candidates?
+      # For small PRs, include high-staleness docs even with low sensitivity
+      if should_include_small_pr_stale_docs? && pr_diff[:code_files].length <= get_small_pr_threshold(@analysis_scope)
+        high_staleness_docs = knowledge_base[:files].select do |doc|
+          !candidate_docs.include?(doc) &&
+          doc[:staleness_risk_level] && doc[:staleness_risk_level] >= get_staleness_threshold(@analysis_scope)
+        end
+        
+        if high_staleness_docs.any?
+          max_stale_candidates = get_max_stale_candidates(@analysis_scope)
+          stale_candidates = high_staleness_docs.first(max_stale_candidates)
+          tertiary_candidates += stale_candidates
+          puts "🕰️  Small PR detected: including #{stale_candidates.length} high-staleness docs as tertiary candidates"
+        end
+      end
+      
+      # Include docs with very high staleness regardless of sensitivity, but limit count
+      max_very_stale = get_max_very_stale_candidates(@analysis_scope)
+      if tertiary_candidates.length < max_very_stale
+        very_stale_docs = knowledge_base[:files].select do |doc|
+          !candidate_docs.include?(doc) &&
+          !tertiary_candidates.include?(doc) &&
+          doc[:staleness_risk_level] == 3
+        end
+        
+        additional_stale = very_stale_docs.first(max_very_stale - tertiary_candidates.length)
+        if additional_stale.any?
+          tertiary_candidates += additional_stale
+          puts "⚠️  Including #{additional_stale.length} very stale docs as tertiary candidates"
+        end
+      end
+      
+      # Include high-confidence API documentation for any API-related changes
+      if should_include_api_docs? && extract_technical_patterns_from_changes(pr_diff).any? { |p| p.include?('API') }
+        min_api_confidence = get_min_api_confidence(@analysis_scope)
+        api_docs = knowledge_base[:files].select do |doc|
+          !candidate_docs.include?(doc) &&
+          !tertiary_candidates.include?(doc) &&
+          doc[:doc_category] && doc[:doc_category].include?('API') &&
+          doc[:confidence_score] && doc[:confidence_score] >= min_api_confidence
+        end
+        
+        if api_docs.length > 0
+          max_api_candidates = get_max_api_candidates(@analysis_scope)
+          additional_api = api_docs.first(max_api_candidates)
+          tertiary_candidates += additional_api
+          puts "🔌 API changes detected: including #{additional_api.length} high-confidence API docs as tertiary candidates"
+        end
+      end
+      
+      # Include setup/installation guides for config or dependency changes
+      if should_include_setup_docs?
+        config_patterns = extract_technical_patterns_from_changes(pr_diff)
+        if config_patterns.any? { |p| p.include?('Configuration') || p.include?('Dependencies') }
+          setup_docs = knowledge_base[:files].select do |doc|
+            !candidate_docs.include?(doc) &&
+            !tertiary_candidates.include?(doc) &&
+            doc[:doc_category] && (doc[:doc_category].include?('Setup') || doc[:doc_category].include?('Installation'))
+          end
+          
+          if setup_docs.length > 0
+            max_setup_candidates = get_max_setup_candidates(@analysis_scope)
+            additional_setup = setup_docs.first(max_setup_candidates)
+            tertiary_candidates += additional_setup
+            puts "⚙️  Configuration changes detected: including #{additional_setup.length} setup/installation docs as tertiary candidates"
+          end
+        end
+      end
+    end
+    
+    candidate_docs += tertiary_candidates
+    
+    if tertiary_candidates.length > 0
+      puts "🎯 Tertiary candidates (edge cases): #{tertiary_candidates.length}"
+      puts "📄 Tertiary candidate files:"
+      tertiary_candidates.each do |doc|
+        reason = []
+        reason << "very stale" if doc[:staleness_risk_level] == 3
+        reason << "small PR + stale" if pr_diff[:code_files].length <= 3 && doc[:staleness_risk_level] >= 2
+        reason << "API doc" if doc[:doc_category] && doc[:doc_category].include?('API')
+        reason << "setup/config doc" if doc[:doc_category] && (doc[:doc_category].include?('Setup') || doc[:doc_category].include?('Installation'))
+        
+        puts "   - #{doc[:path]} (sensitivity: #{doc[:code_sensitivity_level]}, staleness: #{doc[:staleness_risk_level]}, reason: #{reason.join(', ')})"
+      end
+    end
+    
+    # If no candidates at all, return early
     if candidate_docs.empty?
-      puts "ℹ️  No documentation files meet the sensitivity threshold of #{@sensitivity_threshold}"
+      puts "ℹ️  No documentation files meet the criteria"
       puts "   Consider lowering the threshold if you expect more files to be analyzed"
       return []
     end
@@ -205,6 +372,11 @@ class DocumentationDriftDetective
       - Technical patterns covered by the doc vs. areas changed in PR
       - File path relationships (e.g., docs about specific modules/components)
       - Documentation category and how it relates to the changes
+      - Even indirect relationships (e.g., database changes affecting setup guides)
+      - Configuration changes that might affect deployment or setup documentation
+      - API changes that might affect integration documentation
+
+      **Analysis strategy**: #{get_ai_analysis_strategy(@analysis_scope)}
 
       Respond with a JSON array of potentially affected documentation:
       ```json
@@ -218,7 +390,7 @@ class DocumentationDriftDetective
       ]
       ```
 
-      Likelihood: "high", "medium", "low"
+      Likelihood: "high", "medium", "low" (include "low" if there's any reasonable chance of impact)
       Priority: 1-3 (3 = most important to check)
     PROMPT
   end
@@ -258,11 +430,20 @@ class DocumentationDriftDetective
         end
         
         if result['likelihood'] == 'low'
+          # Include low-likelihood docs but mark them as such
           skipped_docs << {
             path: result['path'],
             likelihood: result['likelihood'],
             reasoning: result['reasoning']
           }
+          
+          # Still add to affected docs but with lower confidence flag
+          affected_docs << doc.merge(
+            analysis_likelihood: result['likelihood'],
+            analysis_reasoning: result['reasoning'],
+            analysis_priority: result['priority'] || 1,
+            low_confidence: true
+          )
           next
         end
         
@@ -322,7 +503,16 @@ class DocumentationDriftDetective
     response = copilot_api_request(prompt)
     return [] unless response
     
-    parse_analysis_response(response, docs_with_content)
+    analysis_results = parse_analysis_response(response, docs_with_content)
+    
+    # Preserve low_confidence metadata from AI identification
+    analysis_results.map do |result|
+      original_doc = docs.find { |d| d[:path] == result['path'] }
+      if original_doc && original_doc[:low_confidence]
+        result['analysis_metadata'] = { 'low_confidence' => true }
+      end
+      result
+    end
   end
 
   def fetch_docs_content(docs)
@@ -487,22 +677,27 @@ class DocumentationDriftDetective
   def format_all_recommendations(results)
     content = ""
     
-    # Separate issues by severity
+    # Separate issues by both AI confidence and issue severity
     high_medium_issues = []
-    low_issues = []
+    low_severity_issues = []
+    low_confidence_issues = []
     
     results.each do |result|
       file_path = result['path']
+      is_low_confidence = result.dig('analysis_metadata', 'low_confidence') || false
       
       if result['issues'] && result['issues'].any?
         result['issues'].each do |issue|
           item = {
             file_path: file_path,
-            issue: issue
+            issue: issue,
+            low_confidence: is_low_confidence
           }
           
-          if issue['severity'] == 'low'
-            low_issues << item
+          if is_low_confidence
+            low_confidence_issues << item
+          elsif issue['severity'] == 'low'
+            low_severity_issues << item
           else
             high_medium_issues << item
           end
@@ -510,16 +705,29 @@ class DocumentationDriftDetective
       end
     end
     
-    # Group high/medium issues by file
+    # Group high/medium confidence and severity issues by file
     if high_medium_issues.any?
       content << format_issues_by_file(high_medium_issues)
     end
     
-    # Add suppressed low confidence section if there are low priority items
-    if low_issues.any?
+    # Combine low severity and low confidence for suppressed section
+    suppressed_issues = low_severity_issues + low_confidence_issues
+    
+    if suppressed_issues.any?
+      low_conf_count = low_confidence_issues.length
+      low_sev_count = low_severity_issues.length
+      
+      summary_text = if low_conf_count > 0 && low_sev_count > 0
+                       "low confidence (#{low_conf_count}) and low priority (#{low_sev_count})"
+                     elsif low_conf_count > 0
+                       "low confidence (#{low_conf_count})"
+                     else
+                       "low priority (#{low_sev_count})"
+                     end
+      
       content << "\n<details>\n"
-      content << "<summary>Suggestions suppressed due to low priority (#{low_issues.length})</summary>\n\n"
-      content << format_issues_by_file(low_issues)
+      content << "<summary>Suggestions suppressed due to #{summary_text}</summary>\n\n"
+      content << format_issues_by_file(suppressed_issues)
       content << "</details>\n"
     end
     
@@ -726,6 +934,291 @@ class DocumentationDriftDetective
     
     "[#{display_text}](#{url})"
   end
+
+  def extract_technical_patterns_from_changes(pr_diff)
+    patterns = []
+    
+    pr_diff[:code_files].each do |file|
+      filename = file['filename']
+      
+      # Extract directory-based patterns (casting wider net)
+      path_parts = filename.split('/')
+      path_parts.each do |part|
+        case part.downcase
+        when /app/, /application/
+          patterns += ['Application/Core', 'Business Logic']
+        when /controller/
+          patterns += ['API/Routing', 'MVC/Controllers', 'HTTP/REST', 'Request/Response']
+        when /model/
+          patterns += ['Database/Models', 'Data/Validation', 'ORM/ActiveRecord', 'Business Logic']
+        when /view/, /template/
+          patterns += ['UI/Views', 'Templates/Rendering', 'Frontend/Forms', 'User Interface']
+        when /migration/
+          patterns += ['Database/Schema', 'Database/Migrations', 'Data Structure']
+        when /route/
+          patterns += ['API/Routing', 'URL/Routing', 'Navigation']
+        when /config/
+          patterns += ['Configuration', 'Environment/Setup', 'Application/Settings']
+        when /test/, /spec/
+          patterns += ['Testing/Unit', 'Testing/Integration', 'Quality Assurance']
+        when /api/
+          patterns += ['API/Endpoints', 'API/Documentation', 'External/Integration']
+        when /auth/
+          patterns += ['Authentication/Authorization', 'Security/Access', 'User/Management']
+        when /job/, /worker/
+          patterns += ['Background/Jobs', 'Processing/Queue', 'Async/Operations']
+        when /mailer/
+          patterns += ['Email/Notifications', 'Communication/Messages']
+        when /helper/
+          patterns += ['Utility/Helpers', 'Code/Organization', 'DRY/Principles']
+        when /service/
+          patterns += ['Service/Layer', 'Business/Logic', 'Architecture/Patterns']
+        when /lib/, /library/
+          patterns += ['Library/Code', 'Shared/Utilities', 'Core/Logic']
+        when /db/, /database/
+          patterns += ['Database/Schema', 'Data/Persistence', 'Storage/Management']
+        when /public/, /assets/
+          patterns += ['Static/Assets', 'Public/Resources', 'Frontend/Assets']
+        end
+      end
+      
+      # Map file extensions and names to technical patterns (expanded coverage)
+      case filename
+      when /controller/i
+        patterns += ['API/Routing', 'MVC/Controllers', 'HTTP/REST', 'Request/Response']
+      when /model/i
+        patterns += ['Database/Models', 'Data/Validation', 'ORM/ActiveRecord', 'Business Logic']
+      when /view|erb|html/i
+        patterns += ['UI/Views', 'Templates/Rendering', 'Frontend/Forms', 'User Interface']
+      when /migration/i
+        patterns += ['Database/Schema', 'Database/Migrations', 'Data Structure']
+      when /route/i
+        patterns += ['API/Routing', 'URL/Routing', 'Navigation']
+      when /config/i
+        patterns += ['Configuration', 'Environment/Setup', 'Application/Settings']
+      when /test|spec/i
+        patterns += ['Testing/Unit', 'Testing/Integration', 'Quality Assurance']
+      when /api/i
+        patterns += ['API/Endpoints', 'API/Documentation', 'External/Integration']
+      when /auth/i
+        patterns += ['Authentication/Authorization', 'Security/Access', 'User/Management']
+      when /css|scss|style/i
+        patterns += ['UI/Styling', 'Frontend/CSS', 'Visual/Design']
+      when /js|javascript|ts|typescript/i
+        patterns += ['Frontend/JavaScript', 'UI/Interaction', 'Client/Side']
+      when /helper/i
+        patterns += ['Utility/Helpers', 'Code/Organization', 'DRY/Principles']
+      when /seed/i
+        patterns += ['Database/Seeds', 'Sample/Data', 'Initial/Setup']
+      when /lib/i
+        patterns += ['Library/Code', 'Shared/Utilities', 'Core/Logic']
+      when /service/i
+        patterns += ['Service/Layer', 'Business/Logic', 'Architecture/Patterns']
+      when /job|worker/i
+        patterns += ['Background/Jobs', 'Processing/Queue', 'Async/Operations']
+      when /mailer/i
+        patterns += ['Email/Notifications', 'Communication/Messages']
+      when /gemfile|package\.json/i
+        patterns += ['Dependencies/Management', 'Package/Configuration']
+      when /dockerfile|docker/i
+        patterns += ['Infrastructure/DevOps', 'Deployment/Containers']
+      when /yml|yaml/i
+        patterns += ['Configuration', 'Infrastructure/DevOps', 'CI/CD']
+      end
+      
+      # Also check for specific patterns in the diff content if available
+      if file['patch']
+        patch_content = file['patch'].downcase
+        
+        # Database related
+        patterns += ['Database/Schema', 'Data Structure'] if patch_content.match?(/schema|table|column|index|constraint/)
+        patterns += ['Database/Migrations'] if patch_content.match?(/migrate|migration|add_column|create_table/)
+        patterns += ['Data/Validation'] if patch_content.match?(/valid|validate|presence|format|length/)
+        
+        # API and routing
+        patterns += ['API/Routing', 'URL/Routing'] if patch_content.match?(/route|endpoint|path|url/)
+        patterns += ['API/Endpoints'] if patch_content.match?(/get|post|put|delete|patch|api/)
+        
+        # Authentication and security
+        patterns += ['Authentication/Authorization'] if patch_content.match?(/auth|login|password|token|session/)
+        patterns += ['Security/Access'] if patch_content.match?(/permit|allow|secure|protect/)
+        
+        # UI and forms
+        patterns += ['UI/Forms', 'Frontend/Forms'] if patch_content.match?(/form|input|submit|field/)
+        patterns += ['User Interface', 'UI/Views'] if patch_content.match?(/render|display|show|view/)
+        
+        # Configuration and setup
+        patterns += ['Configuration', 'Environment/Setup'] if patch_content.match?(/config|setting|environment|setup/)
+        
+        # Testing
+        patterns += ['Testing/Unit', 'Testing/Integration'] if patch_content.match?(/test|spec|expect|assert/)
+        
+        # Background jobs and async
+        patterns += ['Background/Jobs', 'Processing/Queue'] if patch_content.match?(/job|worker|queue|async|background/)
+        
+        # Email and notifications
+        patterns += ['Email/Notifications'] if patch_content.match?(/mail|email|notify|message/)
+        
+        # Performance and caching
+        patterns += ['Performance/Optimization'] if patch_content.match?(/cache|optimize|performance|memory/)
+        
+        # External integrations
+        patterns += ['Integration/External'] if patch_content.match?(/webhook|external|third.party|integration/)
+        
+        # Business logic
+        patterns += ['Business Logic', 'Core/Logic'] if patch_content.match?(/process|calculate|logic|rule/)
+      end
+    end
+    
+    patterns.uniq
+  end
+
+  # Analysis scope configuration methods
+  def get_analysis_scope_description(analysis_scope)
+    case analysis_scope
+    when 'narrow'
+      'conservative analysis, fewer candidates'
+    when 'medium'
+      'balanced analysis, moderate candidates'
+    when 'wide'
+      'comprehensive analysis, many candidates'
+    when 'aggressive'
+      'exhaustive analysis, maximum candidates'
+    else
+      'unknown'
+    end
+  end
+
+  def should_include_secondary_candidates?
+    %w[medium wide aggressive].include?(@analysis_scope)
+  end
+
+  def should_include_path_candidates?
+    %w[wide aggressive].include?(@analysis_scope)
+  end
+
+  def should_include_tertiary_candidates?
+    %w[medium wide aggressive].include?(@analysis_scope)
+  end
+
+  def should_include_small_pr_stale_docs?
+    %w[wide aggressive].include?(@analysis_scope)
+  end
+
+  def should_include_api_docs?
+    %w[medium wide aggressive].include?(@analysis_scope)
+  end
+
+  def should_include_setup_docs?
+    %w[wide aggressive].include?(@analysis_scope)
+  end
+
+  def get_max_path_candidates(analysis_scope)
+    case analysis_scope
+    when 'wide'
+      5
+    when 'aggressive'
+      10
+    else
+      3
+    end
+  end
+
+  def get_small_pr_threshold(analysis_scope)
+    case analysis_scope
+    when 'aggressive'
+      5  # Consider larger PRs as "small"
+    else
+      3  # Default threshold
+    end
+  end
+
+  def get_staleness_threshold(analysis_scope)
+    case analysis_scope
+    when 'aggressive'
+      1  # Include any stale docs
+    else
+      2  # Default staleness threshold
+    end
+  end
+
+  def get_max_stale_candidates(analysis_scope)
+    case analysis_scope
+    when 'wide'
+      4
+    when 'aggressive'
+      6
+    else
+      3
+    end
+  end
+
+  def get_max_very_stale_candidates(analysis_scope)
+    case analysis_scope
+    when 'narrow'
+      1
+    when 'medium'
+      2
+    when 'wide'
+      3
+    when 'aggressive'
+      5
+    else
+      2
+    end
+  end
+
+  def get_min_api_confidence(analysis_scope)
+    case analysis_scope
+    when 'medium'
+      0.8  # High confidence only
+    when 'wide'
+      0.6  # Medium to high confidence
+    when 'aggressive'
+      0.4  # Include lower confidence
+    else
+      0.8
+    end
+  end
+
+  def get_max_api_candidates(analysis_scope)
+    case analysis_scope
+    when 'medium'
+      2
+    when 'wide'
+      3
+    when 'aggressive'
+      5
+    else
+      2
+    end
+  end
+
+  def get_max_setup_candidates(analysis_scope)
+    case analysis_scope
+    when 'wide'
+      3
+    when 'aggressive'
+      4
+    else
+      2
+    end
+  end
+
+  def get_ai_analysis_strategy(analysis_scope)
+    case analysis_scope
+    when 'narrow'
+      'Be conservative - only include documentation with direct, obvious relationships to the code changes. Avoid false positives.'
+    when 'medium'
+      'Be balanced - include documentation with clear relationships and some indirect relationships. Moderate inclusion threshold.'
+    when 'wide'
+      'Be comprehensive - include documentation with direct and indirect relationships. When in doubt, err on the side of inclusion.'
+    when 'aggressive'
+      'Be exhaustive - include any documentation that could potentially be affected, even with weak relationships. Minimize false negatives.'
+    else
+      'Use balanced judgment when determining relationships between code changes and documentation.'
+    end
+  end
 end
 
 # Command line interface
@@ -757,6 +1250,15 @@ if __FILE__ == $0
     
     opts.on("--max-docs NUM", "Maximum docs to analyze") do |num|
       options[:max_docs] = num.to_i
+    end
+    
+    opts.on("--analysis-scope LEVEL", "Analysis scope (narrow, medium, wide, aggressive)") do |level|
+      options[:analysis_scope] = level
+    end
+    
+    # Keep backwards compatibility with the old parameter name
+    opts.on("--net-width LEVEL", "Analysis scope (narrow, medium, wide, aggressive) [deprecated: use --analysis-scope]") do |level|
+      options[:net_width] = level
     end
     
     opts.on("-h", "--help", "Show this help message") do
