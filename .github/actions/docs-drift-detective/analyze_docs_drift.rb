@@ -36,6 +36,11 @@ class DocumentationDriftDetective
     
     if affected_docs.empty?
       puts "✅ No potentially affected documentation found"
+      puts "💡 Analysis Summary:"
+      puts "   - Knowledge base contains #{knowledge_base[:files].length} documentation files"
+      puts "   - #{knowledge_base[:files].count { |f| f[:code_sensitivity_level] >= @sensitivity_threshold }} files met sensitivity threshold (>= #{@sensitivity_threshold})"
+      puts "   - AI determined none of these docs are likely affected by the PR changes"
+      puts "   - This could mean: changes are isolated, docs are well-maintained, or threshold is too high"
       return post_no_issues_comment
     end
     
@@ -67,7 +72,19 @@ class DocumentationDriftDetective
     end
     
     begin
-      JSON.parse(File.read(@knowledge_base_path), symbolize_names: true)
+      kb = JSON.parse(File.read(@knowledge_base_path), symbolize_names: true)
+      puts "📚 Loaded knowledge base:"
+      puts "   - Total documented files: #{kb[:files]&.length || 0}"
+      puts "   - Generated: #{kb[:metadata]&.[](:generated_at) || 'unknown'}"
+      puts "   - Confidence: #{kb[:metadata]&.[](:avg_confidence) || 'unknown'}"
+      
+      # Show sensitivity distribution
+      if kb[:files]&.any?
+        sensitivity_counts = kb[:files].group_by { |f| f[:code_sensitivity_level] }.transform_values(&:count)
+        puts "   - Sensitivity distribution: #{sensitivity_counts.map { |k,v| "level #{k}: #{v}" }.join(', ')}"
+      end
+      
+      kb
     rescue JSON::ParserError => e
       puts "⚠️  Error parsing knowledge base: #{e.message}"
       nil
@@ -96,19 +113,53 @@ class DocumentationDriftDetective
   end
 
   def identify_affected_documentation(pr_diff, knowledge_base)
+    puts "📋 Starting documentation drift analysis..."
+    puts "🔍 Sensitivity threshold: #{@sensitivity_threshold} (analyzing docs with code-sensitivity >= #{@sensitivity_threshold})"
+    puts "📊 Total files in knowledge base: #{knowledge_base[:files].length}"
+    
     # Get docs that might be affected by this PR
     candidate_docs = knowledge_base[:files].select do |doc|
       doc[:code_sensitivity_level] >= @sensitivity_threshold
     end
     
+    puts "🎯 Candidate docs meeting sensitivity threshold: #{candidate_docs.length}"
+    if candidate_docs.length > 0
+      puts "📄 Candidate documentation files:"
+      candidate_docs.each do |doc|
+        puts "   - #{doc[:path]} (sensitivity: #{doc[:code_sensitivity_level]}, staleness: #{doc[:staleness_risk_level]})"
+      end
+    end
+    
     # If no high-sensitivity docs, return early
-    return [] if candidate_docs.empty?
+    if candidate_docs.empty?
+      puts "ℹ️  No documentation files meet the sensitivity threshold of #{@sensitivity_threshold}"
+      puts "   Consider lowering the threshold if you expect more files to be analyzed"
+      return []
+    end
+    
+    puts "🤖 Using AI to analyze which docs might be affected by PR changes..."
+    puts "📝 PR contains #{pr_diff[:code_files].length} code file changes:"
+    pr_diff[:code_files].first(10).each do |file|
+      puts "   - #{file['filename']} (+#{file['additions']}/-#{file['deletions']})"
+    end
+    puts "   ... (showing first 10 files)" if pr_diff[:code_files].length > 10
     
     # Use AI to determine which docs are likely affected
     affected_docs = ai_identify_affected_docs(candidate_docs, pr_diff)
     
+    puts "🎯 AI identified #{affected_docs.length} potentially affected docs:"
+    affected_docs.each do |doc|
+      puts "   - #{doc[:path]} (likelihood: #{doc[:analysis_likelihood]}, priority: #{doc[:analysis_priority]})"
+      puts "     Reasoning: #{doc[:analysis_reasoning]}" if doc[:analysis_reasoning]
+    end
+    
     # Limit to max docs to avoid overwhelming
-    affected_docs.first(@max_docs)
+    limited_docs = affected_docs.first(@max_docs)
+    if limited_docs.length < affected_docs.length
+      puts "⚠️  Limited analysis to top #{@max_docs} docs (configured max-docs limit)"
+    end
+    
+    limited_docs
   end
 
   def ai_identify_affected_docs(candidate_docs, pr_diff)
@@ -174,26 +225,46 @@ class DocumentationDriftDetective
 
   def parse_identification_response(response, candidate_docs)
     begin
+      puts "🔍 AI Analysis Response received, parsing results..."
+      
       # Handle JSON wrapped in markdown code blocks
       json_content = response
       if response.include?('```json')
         # Extract JSON from markdown code blocks
         match = response.match(/```json\s*(.*?)\s*```/m)
         json_content = match[1].strip if match
+        puts "📋 Extracted JSON from markdown code blocks"
       elsif response.include?('```')
         # Extract from generic code blocks
         match = response.match(/```\s*(.*?)\s*```/m)
         json_content = match[1].strip if match
+        puts "📋 Extracted JSON from generic code blocks"
+      else
+        puts "📋 Processing raw JSON response"
       end
       
       identified = JSON.parse(json_content || response)
+      puts "✅ Successfully parsed AI response with #{identified.length} document assessments"
       
       # Match back to original docs and filter by likelihood
       affected_docs = []
+      skipped_docs = []
+      
       identified.each do |result|
         doc = candidate_docs.find { |d| d[:path] == result['path'] }
-        next unless doc
-        next if result['likelihood'] == 'low'
+        unless doc
+          puts "⚠️  AI referenced unknown document: #{result['path']}"
+          next
+        end
+        
+        if result['likelihood'] == 'low'
+          skipped_docs << {
+            path: result['path'],
+            likelihood: result['likelihood'],
+            reasoning: result['reasoning']
+          }
+          next
+        end
         
         affected_docs << doc.merge(
           analysis_likelihood: result['likelihood'],
@@ -202,10 +273,27 @@ class DocumentationDriftDetective
         )
       end
       
+      # Log filtering results
+      puts "📊 AI Analysis Results:"
+      puts "   - Total assessments: #{identified.length}"
+      puts "   - Flagged as potentially affected: #{affected_docs.length}"
+      puts "   - Skipped (low likelihood): #{skipped_docs.length}"
+      
+      if skipped_docs.any?
+        puts "📝 Documents marked as low likelihood:"
+        skipped_docs.each do |doc|
+          puts "   - #{doc[:path]}: #{doc[:reasoning]}"
+        end
+      end
+      
       # Sort by priority and likelihood
-      affected_docs.sort_by { |doc| [-doc[:analysis_priority], doc[:analysis_likelihood] == 'high' ? 0 : 1] }
+      sorted_docs = affected_docs.sort_by { |doc| [-doc[:analysis_priority], doc[:analysis_likelihood] == 'high' ? 0 : 1] }
+      puts "🎯 Final affected docs (sorted by priority): #{sorted_docs.length}"
+      
+      sorted_docs
     rescue JSON::ParserError => e
       puts "⚠️  Error parsing identification response: #{e.message}"
+      puts "📋 Raw response preview: #{response[0..200]}#{response.length > 200 ? '...' : ''}"
       []
     end
   end
