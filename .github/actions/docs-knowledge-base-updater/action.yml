@@ -1,0 +1,100 @@
+name: 'Documentation Knowledge Base Updater'
+description: 'Classifies documentation files and maintains a knowledge base for drift detection'
+author: 'GitHub'
+
+inputs:
+  github-token:
+    description: 'GitHub token for API access'
+    required: true
+    default: ${{ github.token }}
+  
+  copilot-token:
+    description: 'GitHub Copilot API token for classification'
+    required: false
+    default: ${{ github.token }}
+  
+  knowledge-base-path:
+    description: 'Path to store the knowledge base file'
+    required: false
+    default: '.github/docs-knowledge-base.json'
+  
+  docs-patterns:
+    description: 'File patterns to classify (newline-separated)'
+    required: false
+    default: |
+      **/*.md
+      **/*.markdown
+      **/README*
+      **/CHANGELOG*
+      **/CONTRIBUTING*
+  
+  exclude-patterns:
+    description: 'Patterns to exclude (newline-separated)'
+    required: false
+    default: |
+      node_modules/**
+      .git/**
+      vendor/**
+      .github/workflows/**
+
+outputs:
+  knowledge-base-path:
+    description: 'Path to the generated knowledge base file'
+    value: ${{ steps.classify.outputs.knowledge-base-path }}
+  
+  classified-files-count:
+    description: 'Number of files classified'
+    value: ${{ steps.classify.outputs.classified-files-count }}
+  
+  high-sensitivity-files:
+    description: 'Number of high code-sensitivity files found'
+    value: ${{ steps.classify.outputs.high-sensitivity-files }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.1'
+        bundler-cache: false
+    
+    - name: Classify Documentation
+      id: classify
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        COPILOT_TOKEN: ${{ inputs.copilot-token }}
+      run: |
+        ruby ${{ github.action_path }}/classify_repository_docs.rb \
+          --repository "${{ github.repository }}" \
+          --output-path "${{ inputs.knowledge-base-path }}" \
+          --docs-patterns "${{ inputs.docs-patterns }}" \
+          --exclude-patterns "${{ inputs.exclude-patterns }}"
+    
+    - name: Commit Knowledge Base
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: |
+        if [[ -f "${{ inputs.knowledge-base-path }}" ]]; then
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add "${{ inputs.knowledge-base-path }}"
+          
+          if ! git diff --cached --quiet; then
+            git commit -m "docs: update documentation knowledge base
+            
+            - Classified ${{ steps.classify.outputs.classified-files-count }} documentation files
+            - Found ${{ steps.classify.outputs.high-sensitivity-files }} high code-sensitivity files
+            - Updated knowledge base for drift detection"
+            
+            git push
+          else
+            echo "No changes to knowledge base file"
+          fi
+        fi
+
+branding:
+  icon: 'file-text'
+  color: 'blue'

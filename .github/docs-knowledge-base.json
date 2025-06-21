@@ -1,0 +1,142 @@
+{
+  "repository": "codespaces-mountain-division/gondola",
+  "generated_at": "2025-06-21T04:22:34+00:00",
+  "total_files": 6,
+  "avg_code_sensitivity": 1.17,
+  "avg_staleness_risk": 2.0,
+  "avg_confidence": 0.81,
+  "high_sensitivity_files": 1,
+  "high_staleness_files": 2,
+  "high_risk_files": 2,
+  "sensitivity_distribution": {
+    "2": 1,
+    "1": 2,
+    "3": 1,
+    "0": 2
+  },
+  "staleness_distribution": {
+    "3": 2,
+    "2": 2,
+    "1": 2
+  },
+  "top_patterns": {
+    "Documentation/Process": 3,
+    "Database/Schema": 3,
+    "Infrastructure/DevOps": 1,
+    "API/Routing": 1,
+    "Frontend/UI": 1,
+    "Security/Compliance": 1
+  },
+  "top_categories": {
+    "Setup Guide (Comprehensive)": 1,
+    "Architecture Overview": 1,
+    "Tutorial (Step-by-Step)": 1,
+    "Personal Notes": 1,
+    "Reference Documentation": 1,
+    "FAQ/Help": 1
+  },
+  "files": [
+    {
+      "path": ".github/DOCS_DRIFT_README.md",
+      "sha": "aabacde4c8119a82227119f515705179aaa6e893",
+      "code_sensitivity_level": 2,
+      "staleness_risk": 3,
+      "technical_patterns": [
+        "Infrastructure/DevOps",
+        "Documentation/Process"
+      ],
+      "doc_category": "Setup Guide (Comprehensive)",
+      "confidence_score": 0.9,
+      "key_indicators": [
+        "GitHub Actions workflow",
+        "repository configuration",
+        "automation setup"
+      ],
+      "classified_at": "2025-06-21T04:22:34+00:00"
+    },
+    {
+      "path": "APP_GUIDE.md",
+      "sha": "8f789aeaf611a75ea60683a89e5dc0c9882556fd",
+      "code_sensitivity_level": 1,
+      "staleness_risk": 2,
+      "technical_patterns": [
+        "Database/Schema"
+      ],
+      "doc_category": "Architecture Overview",
+      "confidence_score": 0.75,
+      "key_indicators": [
+        "general description of model",
+        "no specific implementation details"
+      ],
+      "classified_at": "2025-06-21T04:22:34+00:00"
+    },
+    {
+      "path": "POSTS_GUIDE.md",
+      "sha": "9350cf15dc515679c1ccf753804c1b0fdca5e610",
+      "code_sensitivity_level": 3,
+      "staleness_risk": 3,
+      "technical_patterns": [
+        "API/Routing",
+        "Database/Schema",
+        "Frontend/UI"
+      ],
+      "doc_category": "Tutorial (Step-by-Step)",
+      "confidence_score": 0.95,
+      "key_indicators": [
+        "specific routes",
+        "model validations",
+        "CRUD operations"
+      ],
+      "classified_at": "2025-06-21T04:22:34+00:00"
+    },
+    {
+      "path": "README.md",
+      "sha": "6e2706bedf96e591fa1a83b336812f0cde0741b6",
+      "code_sensitivity_level": 0,
+      "staleness_risk": 1,
+      "technical_patterns": [
+        "Documentation/Process"
+      ],
+      "doc_category": "Personal Notes",
+      "confidence_score": 0.7,
+      "key_indicators": [
+        "non-technical content",
+        "placeholder text"
+      ],
+      "classified_at": "2025-06-21T04:22:34+00:00"
+    },
+    {
+      "path": "docs/database.md",
+      "sha": "a604965cfca18422cf72f0cffbc61e67f4e70f74",
+      "code_sensitivity_level": 1,
+      "staleness_risk": 2,
+      "technical_patterns": [
+        "Database/Schema"
+      ],
+      "doc_category": "Reference Documentation",
+      "confidence_score": 0.8,
+      "key_indicators": [
+        "mentions database features",
+        "lack of implementation details"
+      ],
+      "classified_at": "2025-06-21T04:22:34+00:00"
+    },
+    {
+      "path": "docs/team.md",
+      "sha": "99c5383820f9ef4dd030c6e914c6305c052253ac",
+      "code_sensitivity_level": 0,
+      "staleness_risk": 1,
+      "technical_patterns": [
+        "Documentation/Process",
+        "Security/Compliance"
+      ],
+      "doc_category": "FAQ/Help",
+      "confidence_score": 0.75,
+      "key_indicators": [
+        "team roles",
+        "non-technical descriptions"
+      ],
+      "classified_at": "2025-06-21T04:22:34+00:00"
+    }
+  ]
+}
