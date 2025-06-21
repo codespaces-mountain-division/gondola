@@ -1,39 +1,38 @@
 {
   "repository": "codespaces-mountain-division/gondola",
-  "generated_at": "2025-06-21T07:04:34+00:00",
+  "generated_at": "2025-06-21T07:14:10+00:00",
   "total_files": 6,
-  "avg_code_sensitivity": 1.17,
-  "avg_staleness_risk": 2.0,
+  "avg_code_sensitivity": 1.0,
+  "avg_staleness_risk": 1.83,
   "avg_confidence": 0.83,
   "high_sensitivity_files": 1,
   "high_staleness_files": 2,
   "high_risk_files": 2,
   "sensitivity_distribution": {
     "2": 1,
-    "1": 2,
+    "0": 3,
     "3": 1,
-    "0": 2
+    "1": 1
   },
   "staleness_distribution": {
     "3": 2,
-    "2": 2,
-    "1": 2
+    "1": 3,
+    "2": 1
   },
   "top_patterns": {
-    "Documentation/Process": 3,
-    "Database/Schema": 3,
+    "Documentation/Process": 4,
+    "Database/Schema": 2,
     "Infrastructure/DevOps": 1,
     "API/Routing": 1,
     "Frontend/UI": 1,
     "Security/Compliance": 1
   },
   "top_categories": {
+    "Process Documentation": 2,
     "Setup Guide (Comprehensive)": 1,
-    "Architecture Overview": 1,
-    "Tutorial (Step-by-Step)": 1,
+    "Architecture Deep-Dive": 1,
     "Personal Notes": 1,
-    "Reference Documentation": 1,
-    "Process Documentation": 1
+    "Reference Documentation": 1
   },
   "files": [
     {
@@ -46,29 +45,29 @@
         "Documentation/Process"
       ],
       "doc_category": "Setup Guide (Comprehensive)",
-      "confidence_score": 0.95,
+      "confidence_score": 0.9,
       "key_indicators": [
         "GitHub Actions workflow",
         "repository configuration",
         "automation setup"
       ],
-      "classified_at": "2025-06-21T07:04:33+00:00"
+      "classified_at": "2025-06-21T07:14:09+00:00"
     },
     {
       "path": "APP_GUIDE.md",
-      "sha": "8f789aeaf611a75ea60683a89e5dc0c9882556fd",
-      "code_sensitivity_level": 1,
-      "staleness_risk": 2,
+      "sha": "098ab1337ea97fbcc87071f5e4c22944aaabd4aa",
+      "code_sensitivity_level": 0,
+      "staleness_risk": 1,
       "technical_patterns": [
-        "Database/Schema"
+        "Documentation/Process"
       ],
-      "doc_category": "Architecture Overview",
+      "doc_category": "Process Documentation",
       "confidence_score": 0.75,
       "key_indicators": [
-        "general description of Posts model",
-        "lack of specific implementation details"
+        "general application description",
+        "non-technical overview"
       ],
-      "classified_at": "2025-06-21T07:04:33+00:00"
+      "classified_at": "2025-06-21T07:14:09+00:00"
     },
     {
       "path": "POSTS_GUIDE.md",
@@ -80,14 +79,14 @@
         "Database/Schema",
         "Frontend/UI"
       ],
-      "doc_category": "Tutorial (Step-by-Step)",
-      "confidence_score": 0.9,
+      "doc_category": "Architecture Deep-Dive",
+      "confidence_score": 0.95,
       "key_indicators": [
+        "database schema details",
         "RESTful routes",
-        "model validations",
-        "CRUD operations"
+        "model validations"
       ],
-      "classified_at": "2025-06-21T07:04:33+00:00"
+      "classified_at": "2025-06-21T07:14:09+00:00"
     },
     {
       "path": "README.md",
@@ -98,12 +97,12 @@
         "Documentation/Process"
       ],
       "doc_category": "Personal Notes",
-      "confidence_score": 0.8,
+      "confidence_score": 0.7,
       "key_indicators": [
-        "minimal content",
-        "non-technical placeholder"
+        "dummy repository",
+        "minimal content"
       ],
-      "classified_at": "2025-06-21T07:04:33+00:00"
+      "classified_at": "2025-06-21T07:14:09+00:00"
     },
     {
       "path": "docs/database.md",
@@ -114,12 +113,12 @@
         "Database/Schema"
       ],
       "doc_category": "Reference Documentation",
-      "confidence_score": 0.7,
+      "confidence_score": 0.8,
       "key_indicators": [
-        "mention of database-related feature",
-        "lack of implementation details"
+        "database-related note",
+        "specific feature mention"
       ],
-      "classified_at": "2025-06-21T07:04:33+00:00"
+      "classified_at": "2025-06-21T07:14:09+00:00"
     },
     {
       "path": "docs/team.md",
@@ -136,7 +135,7 @@
         "team roles",
         "non-technical descriptions"
       ],
-      "classified_at": "2025-06-21T07:04:33+00:00"
+      "classified_at": "2025-06-21T07:14:09+00:00"
     }
   ]
 }
