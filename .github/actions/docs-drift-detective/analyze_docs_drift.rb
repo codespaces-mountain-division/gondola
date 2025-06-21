@@ -461,39 +461,22 @@ class DocumentationDriftDetective
   end
 
   def build_comment_body(results)
-    high_priority = results.select { |r| r['overall_priority'] == 'high' }
-    medium_priority = results.select { |r| r['overall_priority'] == 'medium' }
-    low_priority = results.select { |r| r['overall_priority'] == 'low' }
-    
     total_issues = results.sum { |r| r['issues']&.length || 0 }
     
     comment = <<~COMMENT
       ## 📚 Documentation Drift Analysis
       
-      🔍 **Analysis Summary:**
-      - #{results.length} documentation files analyzed
-      - #{total_issues} potential updates identified
-      - #{high_priority.length} high-priority, #{medium_priority.length} medium-priority, #{low_priority.length} low-priority
+      **Analysis Summary:** #{results.length} files analyzed, #{total_issues} potential updates identified
+      
     COMMENT
     
-    if high_priority.any?
-      comment << "\n\n### 🚨 High Priority Updates\n\n"
-      comment << format_priority_section(high_priority)
-    end
-    
-    if medium_priority.any?
-      comment << "\n\n### ⚠️ Medium Priority Updates\n\n"
-      comment << format_priority_section(medium_priority)
-    end
-    
-    if low_priority.any?
-      comment << "\n\n<details>\n<summary>🔍 Low Priority Updates (#{low_priority.length} files)</summary>\n\n"
-      comment << format_priority_section(low_priority)
-      comment << "\n</details>"
+    if total_issues > 0
+      comment << format_all_recommendations(results)
+    else
+      comment << "No documentation updates needed.\n\n"
     end
     
     comment << <<~FOOTER
-      
       ---
       *This analysis was performed by the Documentation Drift Detective action. Please review the suggestions and update documentation as needed.*
     FOOTER
@@ -501,50 +484,64 @@ class DocumentationDriftDetective
     comment
   end
 
-  def format_priority_section(priority_results)
+  def format_all_recommendations(results)
     content = ""
+    all_issues = []
     
-    priority_results.each do |result|
+    # Collect all issues from all files
+    results.each do |result|
       file_path = result['path']
-      file_link = build_file_link(file_path)
-      content << "#### 📄 #{file_link}\n\n"
       
       if result['issues'] && result['issues'].any?
         result['issues'].each do |issue|
-          severity_icon = case issue['severity']
-          when 'high' then '🚨'
-          when 'medium' then '⚠️'
-          else '🔍'
-          end
-          
-          # Parse section information to build a more specific link
-          section_text = issue['section']
-          line_range = nil
-          
-          # Extract line information if present (e.g., "lines 5-10", "line 42")
-          if section_text&.match?(/lines?\s+\d+/i)
-            line_match = section_text.match(/(.*?),?\s*(lines?\s+\d+(?:-\d+)?)/i)
-            if line_match
-              section_name = line_match[1].strip
-              line_range = line_match[2]
-              section_link = build_file_link(file_path, section_name, line_range)
-            else
-              section_link = "**#{section_text}**"
-            end
-          else
-            section_link = "**#{section_text}**"
-          end
-          
-          content << "#{severity_icon} #{section_link}\n"
-          content << "- #{issue['issue']}\n"
-          content << "- *Suggestion: #{issue['suggestion']}*\n\n"
+          all_issues << {
+            file_path: file_path,
+            issue: issue
+          }
         end
-      else
-        content << "No specific issues identified, but this file may need review.\n\n"
       end
     end
     
-    content
+    # Sort by severity (high -> medium -> low)
+    severity_order = { 'high' => 0, 'medium' => 1, 'low' => 2 }
+    all_issues.sort_by! { |item| severity_order[item[:issue]['severity']] || 3 }
+    
+    # Format as bulleted list
+    all_issues.each do |item|
+      file_path = item[:file_path]
+      issue = item[:issue]
+      
+      # Parse section information to build a specific link
+      section_text = issue['section']
+      line_range = nil
+      
+      # Extract line information if present
+      if section_text&.match?(/lines?\s+\d+/i)
+        line_match = section_text.match(/(.*?),?\s*(lines?\s+\d+(?:-\d+)?)/i)
+        if line_match
+          section_name = line_match[1].strip
+          line_range = line_match[2]
+        else
+          section_name = section_text
+        end
+      else
+        section_name = section_text
+      end
+      
+      # Build the file link with line numbers if available
+      file_link = build_file_link(file_path, nil, line_range)
+      
+      # Format severity indicator
+      severity_badge = case issue['severity']
+      when 'high' then '**High**'
+      when 'medium' then '*Medium*'
+      else 'Low'
+      end
+      
+      content << "- #{file_link} - #{section_name} (#{severity_badge}): #{issue['issue']} *#{issue['suggestion']}*\n"
+    end
+    
+    content + "\n"
   end
 
   def post_pr_comment(body)
