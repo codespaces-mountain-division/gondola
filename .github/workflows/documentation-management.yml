@@ -42,6 +42,7 @@ jobs:
         run: |
           gem install net-http
           gem install json
+          gem install base64
       
       - name: Classify documentation files
         uses: ./.github/actions/docs-knowledge-base-updater
@@ -98,6 +99,7 @@ jobs:
         run: |
           gem install net-http
           gem install json
+          gem install base64
       
       - name: Check for knowledge base
         id: check-kb

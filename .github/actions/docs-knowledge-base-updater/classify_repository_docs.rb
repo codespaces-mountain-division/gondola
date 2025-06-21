@@ -8,6 +8,7 @@ require 'optparse'
 require 'fileutils'
 require 'pathname'
 require 'time'
+require 'digest'
 
 class RepositoryDocumentationClassifier
   def initialize(options = {})
@@ -60,31 +61,30 @@ class RepositoryDocumentationClassifier
   def discover_documentation_files
     files = []
     
-    # Get repository tree
-    tree_data = github_api_request("GET", "/repos/#{@repository}/git/trees/HEAD?recursive=1")
-    return [] unless tree_data && tree_data['tree']
-    
-    tree_data['tree'].each do |item|
-      next unless item['type'] == 'blob'
-      
-      file_path = item['path']
-      
-      # Check if file matches any docs pattern
-      matches_docs = @docs_patterns.any? { |pattern| File.fnmatch(pattern, file_path, File::FNM_PATHNAME) }
-      next unless matches_docs
-      
-      # Check if file matches any exclude pattern
-      excluded = @exclude_patterns.any? { |pattern| File.fnmatch(pattern, file_path, File::FNM_PATHNAME) }
-      next if excluded
-      
-      files << {
-        path: file_path,
-        sha: item['sha'],
-        size: item['size']
-      }
+    # Scan local filesystem instead of GitHub API since we're in a checkout
+    @docs_patterns.each do |pattern|
+      Dir.glob(pattern, File::FNM_PATHNAME).each do |file_path|
+        # Skip if file doesn't exist or is a directory
+        next unless File.exist?(file_path) && File.file?(file_path)
+        
+        # Check if file matches any exclude pattern
+        excluded = @exclude_patterns.any? { |exclude_pattern| 
+          File.fnmatch(exclude_pattern, file_path, File::FNM_PATHNAME) 
+        }
+        next if excluded
+        
+        # Get file stats
+        stat = File.stat(file_path)
+        
+        files << {
+          path: file_path,
+          sha: Digest::SHA1.hexdigest(File.read(file_path)), # Generate SHA for consistency
+          size: stat.size
+        }
+      end
     end
     
-    files
+    files.uniq { |f| f[:path] } # Remove duplicates based on path
   end
 
   def classify_files(files)
@@ -123,11 +123,10 @@ class RepositoryDocumentationClassifier
   end
 
   def fetch_file_content(file_path)
-    response = github_api_request("GET", "/repos/#{@repository}/contents/#{file_path}")
-    return nil unless response && response['content']
+    return nil unless File.exist?(file_path) && File.readable?(file_path)
     
-    # Decode base64 content
-    content = Base64.decode64(response['content'])
+    # Read file content
+    content = File.read(file_path)
     
     # Handle encoding issues
     content = content.force_encoding('UTF-8')
@@ -137,7 +136,7 @@ class RepositoryDocumentationClassifier
     
     content
   rescue => e
-    puts "⚠️  Error fetching #{file_path}: #{e.message}"
+    puts "⚠️  Error reading #{file_path}: #{e.message}"
     nil
   end
 
