@@ -501,6 +501,7 @@ class DocumentationDriftDetective
     request = Net::HTTP::Post.new(uri)
     request['Authorization'] = "Bearer #{@copilot_token}"
     request['Content-Type'] = 'application/json'
+    request['Copilot-Integration-Id'] = 'playground-dev'
     
     request.body = {
       model: 'gpt-4',
