@@ -61,9 +61,15 @@ class RepositoryDocumentationClassifier
   def discover_documentation_files
     files = []
     
+    # Debug: Show current working directory
+    puts "🔍 Working directory: #{Dir.pwd}"
+    
     # Scan local filesystem instead of GitHub API since we're in a checkout
     @docs_patterns.each do |pattern|
-      Dir.glob(pattern, File::FNM_PATHNAME).each do |file_path|
+      pattern_matches = Dir.glob(pattern, File::FNM_DOTMATCH)
+      puts "🔍 Pattern '#{pattern}' found #{pattern_matches.length} matches"
+      
+      pattern_matches.each do |file_path|
         # Skip if file doesn't exist or is a directory
         next unless File.exist?(file_path) && File.file?(file_path)
         
@@ -71,6 +77,13 @@ class RepositoryDocumentationClassifier
         excluded = @exclude_patterns.any? { |exclude_pattern| 
           File.fnmatch(exclude_pattern, file_path, File::FNM_PATHNAME) 
         }
+        
+        if excluded
+          puts "🚫 Excluding #{file_path} (matched exclude pattern)"
+        else
+          puts "✅ Including #{file_path}"
+        end
+        
         next if excluded
         
         # Get file stats
@@ -218,7 +231,19 @@ class RepositoryDocumentationClassifier
 
   def parse_classification_response(response, files)
     begin
-      classifications = JSON.parse(response)
+      # Handle JSON wrapped in markdown code blocks
+      json_content = response
+      if response.include?('```json')
+        # Extract JSON from markdown code blocks
+        match = response.match(/```json\s*(.*?)\s*```/m)
+        json_content = match[1].strip if match
+      elsif response.include?('```')
+        # Extract from generic code blocks
+        match = response.match(/```\s*(.*?)\s*```/m)
+        json_content = match[1].strip if match
+      end
+      
+      classifications = JSON.parse(json_content || response)
       
       classified_files = []
       classifications.each do |classification|
@@ -342,9 +367,18 @@ class RepositoryDocumentationClassifier
     puts "   Average confidence: #{knowledge_base[:avg_confidence]}"
     
     # Set GitHub Actions outputs
-    puts "::set-output name=knowledge-base-path::#{@output_path}"
-    puts "::set-output name=classified-files-count::#{knowledge_base[:total_files]}"
-    puts "::set-output name=high-sensitivity-files::#{knowledge_base[:high_sensitivity_files]}"
+    if ENV['GITHUB_OUTPUT']
+      File.open(ENV['GITHUB_OUTPUT'], 'a') do |f|
+        f.puts "knowledge-base-path=#{@output_path}"
+        f.puts "classified-files-count=#{knowledge_base[:total_files]}"
+        f.puts "high-sensitivity-files=#{knowledge_base[:high_sensitivity_files]}"
+      end
+    else
+      # Fallback for older versions or local testing
+      puts "::set-output name=knowledge-base-path::#{@output_path}"
+      puts "::set-output name=classified-files-count::#{knowledge_base[:total_files]}"
+      puts "::set-output name=high-sensitivity-files::#{knowledge_base[:high_sensitivity_files]}"
+    end
   end
 
   def github_api_request(method, path, body = nil)
