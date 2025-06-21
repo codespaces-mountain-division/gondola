@@ -486,62 +486,85 @@ class DocumentationDriftDetective
 
   def format_all_recommendations(results)
     content = ""
-    all_issues = []
     
-    # Collect all issues from all files
+    # Separate issues by severity
+    high_medium_issues = []
+    low_issues = []
+    
     results.each do |result|
       file_path = result['path']
       
       if result['issues'] && result['issues'].any?
         result['issues'].each do |issue|
-          all_issues << {
+          item = {
             file_path: file_path,
             issue: issue
           }
+          
+          if issue['severity'] == 'low'
+            low_issues << item
+          else
+            high_medium_issues << item
+          end
         end
       end
     end
     
-    # Sort by severity (high -> medium -> low)
-    severity_order = { 'high' => 0, 'medium' => 1, 'low' => 2 }
-    all_issues.sort_by! { |item| severity_order[item[:issue]['severity']] || 3 }
+    # Group high/medium issues by file
+    if high_medium_issues.any?
+      content << format_issues_by_file(high_medium_issues)
+    end
     
-    # Format as bulleted list
-    all_issues.each do |item|
-      file_path = item[:file_path]
-      issue = item[:issue]
-      
-      # Parse section information to build a specific link
-      section_text = issue['section']
-      line_range = nil
-      
-      # Extract line information if present
-      if section_text&.match?(/lines?\s+\d+/i)
-        line_match = section_text.match(/(.*?),?\s*(lines?\s+\d+(?:-\d+)?)/i)
-        if line_match
-          section_name = line_match[1].strip
-          line_range = line_match[2]
-        else
-          section_name = section_text
-        end
-      else
-        section_name = section_text
-      end
-      
-      # Build the file link with line numbers if available
-      file_link = build_file_link(file_path, nil, line_range)
-      
-      # Format severity indicator
-      severity_badge = case issue['severity']
-      when 'high' then '**High**'
-      when 'medium' then '*Medium*'
-      else 'Low'
-      end
-      
-      content << "- #{file_link} - #{section_name} (#{severity_badge}): #{issue['issue']} *#{issue['suggestion']}*\n"
+    # Add suppressed low confidence section if there are low priority items
+    if low_issues.any?
+      content << "\n<details>\n"
+      content << "<summary>Comments suppressed due to low confidence (#{low_issues.length})</summary>\n\n"
+      content << format_issues_by_file(low_issues)
+      content << "</details>\n"
     end
     
     content + "\n"
+  end
+
+  def format_issues_by_file(issues)
+    content = ""
+    
+    # Group by file
+    issues_by_file = issues.group_by { |item| item[:file_path] }
+    
+    issues_by_file.each do |file_path, file_issues|
+      content << "**#{file_path}**\n"
+      
+      file_issues.each do |item|
+        issue = item[:issue]
+        
+        # Parse section information to build a specific link
+        section_text = issue['section']
+        line_range = nil
+        
+        # Extract line information if present
+        if section_text&.match?(/lines?\s+\d+/i)
+          line_match = section_text.match(/(.*?),?\s*(lines?\s+\d+(?:-\d+)?)/i)
+          if line_match
+            section_name = line_match[1].strip
+            line_range = line_match[2]
+          else
+            section_name = section_text
+          end
+        else
+          section_name = section_text
+        end
+        
+        # Build the file link with line numbers if available
+        issue_link = build_file_link(file_path, section_name, line_range)
+        
+        content << "* #{issue_link}: #{issue['suggestion']}\n"
+      end
+      
+      content << "\n"
+    end
+    
+    content
   end
 
   def post_pr_comment(body)
