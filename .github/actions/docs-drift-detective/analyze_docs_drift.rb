@@ -477,19 +477,19 @@ class DocumentationDriftDetective
     COMMENT
     
     if high_priority.any?
-      comment << "\\n\\n### 🚨 High Priority Updates\\n\\n"
+      comment << "\n\n### 🚨 High Priority Updates\n\n"
       comment << format_priority_section(high_priority)
     end
     
     if medium_priority.any?
-      comment << "\\n\\n### ⚠️ Medium Priority Updates\\n\\n"
+      comment << "\n\n### ⚠️ Medium Priority Updates\n\n"
       comment << format_priority_section(medium_priority)
     end
     
     if low_priority.any?
-      comment << "\\n\\n<details>\\n<summary>🔍 Low Priority Updates (#{low_priority.length} files)</summary>\\n\\n"
+      comment << "\n\n<details>\n<summary>🔍 Low Priority Updates (#{low_priority.length} files)</summary>\n\n"
       comment << format_priority_section(low_priority)
-      comment << "\\n</details>"
+      comment << "\n</details>"
     end
     
     comment << <<~FOOTER
@@ -505,7 +505,7 @@ class DocumentationDriftDetective
     content = ""
     
     priority_results.each do |result|
-      content << "#### 📄 `#{result['path']}`\\n\\n"
+      content << "#### 📄 `#{result['path']}`\n\n"
       
       if result['issues'] && result['issues'].any?
         result['issues'].each do |issue|
@@ -515,12 +515,12 @@ class DocumentationDriftDetective
           else '🔍'
           end
           
-          content << "#{severity_icon} **#{issue['section']}**\\n"
-          content << "- #{issue['issue']}\\n"
-          content << "- *Suggestion: #{issue['suggestion']}*\\n\\n"
+          content << "#{severity_icon} **#{issue['section']}**\n"
+          content << "- #{issue['issue']}\n"
+          content << "- *Suggestion: #{issue['suggestion']}*\n\n"
         end
       else
-        content << "No specific issues identified, but this file may need review.\\n\\n"
+        content << "No specific issues identified, but this file may need review.\n\n"
       end
     end
     
