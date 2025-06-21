@@ -1,36 +1,34 @@
 {
   "repository": "codespaces-mountain-division/gondola",
-  "generated_at": "2025-06-21T01:08:26+00:00",
-  "total_files": 3,
+  "generated_at": "2025-06-21T01:28:14+00:00",
+  "total_files": 4,
   "avg_code_sensitivity": 2.0,
-  "avg_staleness_risk": 2.0,
-  "avg_confidence": 0.86,
+  "avg_staleness_risk": 2.5,
+  "avg_confidence": 0.85,
   "high_sensitivity_files": 1,
-  "high_staleness_files": 1,
-  "high_risk_files": 2,
+  "high_staleness_files": 2,
+  "high_risk_files": 3,
   "sensitivity_distribution": {
-    "2": 1,
+    "2": 2,
     "3": 1,
     "1": 1
   },
   "staleness_distribution": {
-    "3": 1,
-    "2": 1,
-    "1": 1
+    "3": 2,
+    "2": 2
   },
   "top_patterns": {
-    "Testing/QA": 2,
+    "Documentation/Process": 2,
     "Database/Schema": 2,
     "Infrastructure/DevOps": 1,
-    "Configuration/Environment": 1,
-    "Documentation/Process": 1,
     "API/Routing": 1,
     "Frontend/UI": 1
   },
   "top_categories": {
     "Setup Guide (Comprehensive)": 1,
     "Architecture Deep-Dive": 1,
-    "Personal Notes": 1
+    "Process Documentation": 1,
+    "Reference Documentation": 1
   },
   "files": [
     {
@@ -40,8 +38,6 @@
       "staleness_risk": 3,
       "technical_patterns": [
         "Infrastructure/DevOps",
-        "Testing/QA",
-        "Configuration/Environment",
         "Documentation/Process"
       ],
       "doc_category": "Setup Guide (Comprehensive)",
@@ -51,44 +47,58 @@
         "repository configuration",
         "automation setup"
       ],
-      "classified_at": "2025-06-21T01:08:25+00:00"
+      "classified_at": "2025-06-21T01:28:13+00:00"
     },
     {
       "path": "POSTS_GUIDE.md",
       "sha": "9350cf15dc515679c1ccf753804c1b0fdca5e610",
       "code_sensitivity_level": 3,
-      "staleness_risk": 2,
+      "staleness_risk": 3,
       "technical_patterns": [
-        "Database/Schema",
         "API/Routing",
-        "Frontend/UI",
-        "Testing/QA"
+        "Database/Schema",
+        "Frontend/UI"
       ],
       "doc_category": "Architecture Deep-Dive",
-      "confidence_score": 0.92,
+      "confidence_score": 0.95,
       "key_indicators": [
-        "database schema details",
         "RESTful routes",
+        "database schema",
         "model validations"
       ],
-      "classified_at": "2025-06-21T01:08:25+00:00"
+      "classified_at": "2025-06-21T01:28:13+00:00"
+    },
+    {
+      "path": "README.md",
+      "sha": "da7373a018e85918e2473dea7570a9f38eab9714",
+      "code_sensitivity_level": 1,
+      "staleness_risk": 2,
+      "technical_patterns": [
+        "Documentation/Process"
+      ],
+      "doc_category": "Process Documentation",
+      "confidence_score": 0.8,
+      "key_indicators": [
+        "workflow testing",
+        "documentation drift"
+      ],
+      "classified_at": "2025-06-21T01:28:13+00:00"
     },
     {
       "path": "docs/database.md",
       "sha": "a604965cfca18422cf72f0cffbc61e67f4e70f74",
-      "code_sensitivity_level": 1,
-      "staleness_risk": 1,
+      "code_sensitivity_level": 2,
+      "staleness_risk": 2,
       "technical_patterns": [
         "Database/Schema"
       ],
-      "doc_category": "Personal Notes",
+      "doc_category": "Reference Documentation",
       "confidence_score": 0.75,
       "key_indicators": [
-        "brief content",
-        "lack of implementation details",
-        "informal tone"
+        "database-related notes",
+        "missing feature labeling"
       ],
-      "classified_at": "2025-06-21T01:08:25+00:00"
+      "classified_at": "2025-06-21T01:28:13+00:00"
     }
   ]
 }
