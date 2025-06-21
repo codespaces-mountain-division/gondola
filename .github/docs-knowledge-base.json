@@ -1,16 +1,16 @@
 {
   "repository": "codespaces-mountain-division/gondola",
-  "generated_at": "2025-06-21T03:28:20+00:00",
+  "generated_at": "2025-06-21T04:22:34+00:00",
   "total_files": 6,
-  "avg_code_sensitivity": 1.33,
+  "avg_code_sensitivity": 1.17,
   "avg_staleness_risk": 2.0,
-  "avg_confidence": 0.84,
+  "avg_confidence": 0.81,
   "high_sensitivity_files": 1,
   "high_staleness_files": 2,
-  "high_risk_files": 3,
+  "high_risk_files": 2,
   "sensitivity_distribution": {
-    "2": 2,
-    "1": 1,
+    "2": 1,
+    "1": 2,
     "3": 1,
     "0": 2
   },
@@ -31,9 +31,9 @@
     "Setup Guide (Comprehensive)": 1,
     "Architecture Overview": 1,
     "Tutorial (Step-by-Step)": 1,
-    "README": 1,
+    "Personal Notes": 1,
     "Reference Documentation": 1,
-    "Process Documentation": 1
+    "FAQ/Help": 1
   },
   "files": [
     {
@@ -52,7 +52,7 @@
         "repository configuration",
         "automation setup"
       ],
-      "classified_at": "2025-06-21T03:28:19+00:00"
+      "classified_at": "2025-06-21T04:22:34+00:00"
     },
     {
       "path": "APP_GUIDE.md",
@@ -65,10 +65,10 @@
       "doc_category": "Architecture Overview",
       "confidence_score": 0.75,
       "key_indicators": [
-        "general description of Posts model",
+        "general description of model",
         "no specific implementation details"
       ],
-      "classified_at": "2025-06-21T03:28:19+00:00"
+      "classified_at": "2025-06-21T04:22:34+00:00"
     },
     {
       "path": "POSTS_GUIDE.md",
@@ -83,43 +83,43 @@
       "doc_category": "Tutorial (Step-by-Step)",
       "confidence_score": 0.95,
       "key_indicators": [
-        "RESTful routes",
+        "specific routes",
         "model validations",
         "CRUD operations"
       ],
-      "classified_at": "2025-06-21T03:28:19+00:00"
+      "classified_at": "2025-06-21T04:22:34+00:00"
     },
     {
       "path": "README.md",
-      "sha": "da7373a018e85918e2473dea7570a9f38eab9714",
+      "sha": "6e2706bedf96e591fa1a83b336812f0cde0741b6",
       "code_sensitivity_level": 0,
       "staleness_risk": 1,
       "technical_patterns": [
         "Documentation/Process"
       ],
-      "doc_category": "README",
-      "confidence_score": 0.8,
+      "doc_category": "Personal Notes",
+      "confidence_score": 0.7,
       "key_indicators": [
-        "dummy repo description",
-        "no technical details"
+        "non-technical content",
+        "placeholder text"
       ],
-      "classified_at": "2025-06-21T03:28:19+00:00"
+      "classified_at": "2025-06-21T04:22:34+00:00"
     },
     {
       "path": "docs/database.md",
       "sha": "a604965cfca18422cf72f0cffbc61e67f4e70f74",
-      "code_sensitivity_level": 2,
+      "code_sensitivity_level": 1,
       "staleness_risk": 2,
       "technical_patterns": [
         "Database/Schema"
       ],
       "doc_category": "Reference Documentation",
-      "confidence_score": 0.85,
+      "confidence_score": 0.8,
       "key_indicators": [
         "mentions database features",
-        "specific implementation detail (labelling)"
+        "lack of implementation details"
       ],
-      "classified_at": "2025-06-21T03:28:19+00:00"
+      "classified_at": "2025-06-21T04:22:34+00:00"
     },
     {
       "path": "docs/team.md",
@@ -130,13 +130,13 @@
         "Documentation/Process",
         "Security/Compliance"
       ],
-      "doc_category": "Process Documentation",
-      "confidence_score": 0.8,
+      "doc_category": "FAQ/Help",
+      "confidence_score": 0.75,
       "key_indicators": [
         "team roles",
         "non-technical descriptions"
       ],
-      "classified_at": "2025-06-21T03:28:19+00:00"
+      "classified_at": "2025-06-21T04:22:34+00:00"
     }
   ]
 }
