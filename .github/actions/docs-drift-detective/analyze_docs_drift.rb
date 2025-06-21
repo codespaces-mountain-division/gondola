@@ -174,11 +174,19 @@ class DocumentationDriftDetective
 
   def parse_identification_response(response, candidate_docs)
     begin
-      # Extract JSON from response
-      json_match = response.match(/```json\\s*({.*?})\\s*```/m)
-      json_content = json_match ? json_match[1] : response
+      # Handle JSON wrapped in markdown code blocks
+      json_content = response
+      if response.include?('```json')
+        # Extract JSON from markdown code blocks
+        match = response.match(/```json\s*(.*?)\s*```/m)
+        json_content = match[1].strip if match
+      elsif response.include?('```')
+        # Extract from generic code blocks
+        match = response.match(/```\s*(.*?)\s*```/m)
+        json_content = match[1].strip if match
+      end
       
-      identified = JSON.parse(json_content)
+      identified = JSON.parse(json_content || response)
       
       # Match back to original docs and filter by likelihood
       affected_docs = []
@@ -315,11 +323,19 @@ class DocumentationDriftDetective
 
   def parse_analysis_response(response, docs)
     begin
-      # Extract JSON from response
-      json_match = response.match(/```json\\s*(\\[.*?\\])\\s*```/m)
-      json_content = json_match ? json_match[1] : response
+      # Handle JSON wrapped in markdown code blocks
+      json_content = response
+      if response.include?('```json')
+        # Extract JSON from markdown code blocks
+        match = response.match(/```json\s*(.*?)\s*```/m)
+        json_content = match[1].strip if match
+      elsif response.include?('```')
+        # Extract from generic code blocks
+        match = response.match(/```\s*(.*?)\s*```/m)
+        json_content = match[1].strip if match
+      end
       
-      JSON.parse(json_content)
+      JSON.parse(json_content || response)
     rescue JSON::ParserError => e
       puts "⚠️  Error parsing analysis response: #{e.message}"
       []
@@ -450,9 +466,18 @@ class DocumentationDriftDetective
     puts "   High priority: #{high_priority}"
     
     # Set GitHub Actions outputs
-    puts "::set-output name=docs-analyzed::#{results.length}"
-    puts "::set-output name=potential-updates-found::#{total_issues}"
-    puts "::set-output name=high-priority-updates::#{high_priority}"
+    if ENV['GITHUB_OUTPUT']
+      File.open(ENV['GITHUB_OUTPUT'], 'a') do |f|
+        f.puts "docs-analyzed=#{results.length}"
+        f.puts "potential-updates-found=#{total_issues}"
+        f.puts "high-priority-updates=#{high_priority}"
+      end
+    else
+      # Fallback for older versions or local testing
+      puts "::set-output name=docs-analyzed::#{results.length}"
+      puts "::set-output name=potential-updates-found::#{total_issues}"
+      puts "::set-output name=high-priority-updates::#{high_priority}"
+    end
   end
 
   def github_api_request(method, path, body = nil)
