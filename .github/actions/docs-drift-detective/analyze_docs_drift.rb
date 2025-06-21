@@ -353,7 +353,7 @@ class DocumentationDriftDetective
     end
 
     <<~PROMPT
-      You are a documentation drift detection expert. Analyze a pull request and determine which documentation files might need updates based on the code changes.
+      You are a documentation drift detection expert. Determine which documentation files might contain OUTDATED content due to the specific code changes in this PR.
 
       ## Pull Request Changes
       **Files modified:** #{changed_files.length} files
@@ -367,31 +367,37 @@ class DocumentationDriftDetective
       ## Documentation Files to Evaluate
       #{JSON.pretty_generate(docs_summary)}
 
-      ## Task
-      For each documentation file, determine if it's likely to be affected by these PR changes. Consider:
-      - Technical patterns covered by the doc vs. areas changed in PR
-      - File path relationships (e.g., docs about specific modules/components)
-      - Documentation category and how it relates to the changes
-      - Even indirect relationships (e.g., database changes affecting setup guides)
-      - Configuration changes that might affect deployment or setup documentation
-      - API changes that might affect integration documentation
+      ## FOCUS ON DRIFT DETECTION
+      
+      Only flag documentation that is likely to contain OUTDATED information due to these specific changes. Ask yourself:
+      
+      1. **Does this doc likely reference the changed files/functions?**
+      2. **Would existing examples or instructions become incorrect?**
+      3. **Are there specific APIs/endpoints that might now be wrong?**
+      4. **Do configuration steps reference things that changed?**
+      
+      **DO NOT flag docs just because:**
+      - They could benefit from general improvements
+      - They're missing information (unless it was removed in this PR)
+      - They could have more examples added
+      - They're in a related technical area but don't reference the changed code
 
       **Analysis strategy**: #{get_ai_analysis_strategy(@analysis_scope)}
 
-      Respond with a JSON array of potentially affected documentation:
+      Respond with a JSON array of documentation that likely contains OUTDATED content:
       ```json
       [
         {
           "path": "docs/api.md",
           "likelihood": "high",
-          "reasoning": "Documents API endpoints that may be affected by controller changes",
+          "reasoning": "Contains code examples using AuthController methods that were renamed in this PR",
           "priority": 3
         }
       ]
       ```
 
-      Likelihood: "high", "medium", "low" (include "low" if there's any reasonable chance of impact)
-      Priority: 1-3 (3 = most important to check)
+      Likelihood: "high" (likely contains outdated code/references), "medium" (might contain outdated info), "low" (small chance of outdated content)
+      Priority: 1-3 (3 = most important to check for outdated content)
     PROMPT
   end
 
@@ -553,7 +559,7 @@ class DocumentationDriftDetective
     end
 
     <<~PROMPT
-      You are a documentation quality expert. Analyze documentation files to identify specific content that may be outdated based on recent code changes.
+      You are a documentation drift detection expert. Your job is to identify content that has become OUTDATED due to the specific code changes in this PR. 
 
       ## Code Changes in This PR
       **Modified files:**
@@ -562,19 +568,34 @@ class DocumentationDriftDetective
       ## Documentation Files to Analyze
       #{JSON.pretty_generate(docs_for_analysis)}
 
-      ## Task
-      For each documentation file, carefully read the content and identify specific sections, examples, or statements that might be outdated due to the code changes. Focus on:
+      ## CRITICAL INSTRUCTIONS
       
-      1. **Code examples** that might reference changed files/functions
-      2. **Configuration instructions** that might be affected
-      3. **API documentation** that might need updates
-      4. **Process descriptions** that might have changed
-      5. **File/module references** that might be stale
+      **ONLY flag content that is OUTDATED due to these specific code changes.**
+      
+      **DO NOT suggest:**
+      - General improvements or enhancements
+      - Additional content that could be added
+      - Style or formatting changes
+      - Missing sections that were never there
+      - Best practices that aren't related to the code changes
+      
+      **DO flag content that:**
+      1. **References specific files/functions that were modified** - Look for exact matches
+      2. **Contains code examples using the changed code** - Check for outdated syntax/APIs
+      3. **Describes processes that the code changes modified** - Only if the docs explicitly describe the old process
+      4. **Has configuration steps that no longer work** - Due to the specific changes made
+      5. **Contains outdated URLs, paths, or endpoints** - That were changed in this PR
 
-      For each potential issue, provide:
-      - Specific line/section reference
-      - What might be outdated
-      - Suggested action
+      ## Analysis Requirements
+      
+      For each issue you identify:
+      - Quote the specific existing text that is now outdated
+      - Explain exactly why it's outdated (reference the specific code change)
+      - DO NOT reference line numbers unless you can see them in the provided content
+      - If you can't find the exact text, reference the section by name only
+      - Focus on factual inaccuracies, not missing information
+
+      **If the documentation doesn't contain anything that's specifically outdated by these changes, return an empty issues array.**
 
       Respond with JSON:
       ```json
@@ -583,10 +604,11 @@ class DocumentationDriftDetective
           "path": "docs/api.md",
           "issues": [
             {
-              "section": "Authentication section, lines 45-60",
-              "issue": "References old AuthController methods that may have changed",
+              "section": "Authentication section",
+              "existing_content": "Call AuthController.authenticate(token)",
+              "issue": "Code example references AuthController.authenticate() method which was renamed to AuthController.verify() in app/controllers/auth_controller.rb",
               "severity": "high",
-              "suggestion": "Verify authentication flow and update examples"
+              "suggestion": "Update code example to use AuthController.verify(token)"
             }
           ],
           "overall_priority": "high"
@@ -594,7 +616,7 @@ class DocumentationDriftDetective
       ]
       ```
 
-      Severity: "high", "medium", "low"
+      Severity: "high" (broken examples/links), "medium" (misleading info), "low" (minor inaccuracies)
       Priority: "high", "medium", "low"
     PROMPT
   end
@@ -766,7 +788,13 @@ class DocumentationDriftDetective
         # Build the file link with line numbers if available
         issue_link = build_file_link(file_path, section_name, line_range)
         
-        content << "* #{issue_link}: #{issue['suggestion']}\n"
+        # Format the issue description with context if available
+        issue_description = issue['suggestion']
+        if issue['existing_content'] && !issue['existing_content'].empty?
+          issue_description = "**Outdated content:** `#{issue['existing_content']}` - #{issue['suggestion']}"
+        end
+        
+        content << "* #{issue_link}: #{issue_description}\n"
       end
       
       content << "\n"
@@ -1208,15 +1236,15 @@ class DocumentationDriftDetective
   def get_ai_analysis_strategy(analysis_scope)
     case analysis_scope
     when 'narrow'
-      'Be conservative - only include documentation with direct, obvious relationships to the code changes. Avoid false positives.'
+      'Be very conservative - only flag documentation with direct, obvious references to the changed code. Focus on broken examples and clear factual errors.'
     when 'medium'
-      'Be balanced - include documentation with clear relationships and some indirect relationships. Moderate inclusion threshold.'
+      'Be selective - flag documentation that likely contains outdated references to the changed code. Focus on drift, not improvements.'
     when 'wide'
-      'Be comprehensive - include documentation with direct and indirect relationships. When in doubt, err on the side of inclusion.'
+      'Be thorough - include documentation that might contain outdated content due to direct or indirect code relationships. Still focus on what\'s outdated, not what\'s missing.'
     when 'aggressive'
-      'Be exhaustive - include any documentation that could potentially be affected, even with weak relationships. Minimize false negatives.'
+      'Be comprehensive - include any documentation that could potentially contain outdated information. But always focus on existing content that may now be wrong, not content that could be added.'
     else
-      'Use balanced judgment when determining relationships between code changes and documentation.'
+      'Focus on detecting outdated content rather than suggesting improvements. Only flag what may now be factually incorrect.'
     end
   end
 end
