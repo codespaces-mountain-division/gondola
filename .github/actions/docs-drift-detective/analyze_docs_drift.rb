@@ -586,29 +586,29 @@ class DocumentationDriftDetective
       4. **Has configuration steps that no longer work** - Due to the specific changes made
       5. **Contains outdated URLs, paths, or endpoints** - That were changed in this PR
 
-      ## Analysis Requirements
+      ## RESPONSE FORMAT REQUIREMENTS
       
       For each issue you identify:
-      - Quote the specific existing text that is now outdated
-      - Explain exactly why it's outdated (reference the specific code change)
-      - DO NOT reference line numbers unless you can see them in the provided content
-      - If you can't find the exact text, reference the section by name only
-      - Focus on factual inaccuracies, not missing information
+      - `section_name`: Keep it simple - just the section name, NO line numbers
+      - `line_reference`: Leave empty "" (do not make up line numbers)
+      - `outdated_content`: ONE clear sentence describing what is now wrong
+      - `suggested_change`: ONE clear sentence describing how to fix it
+      - Keep both sentences concise and actionable
 
       **If the documentation doesn't contain anything that's specifically outdated by these changes, return an empty issues array.**
 
-      Respond with JSON:
+      Respond with JSON using this EXACT schema:
       ```json
       [
         {
           "path": "docs/api.md",
           "issues": [
             {
-              "section": "Authentication section",
-              "existing_content": "Call AuthController.authenticate(token)",
-              "issue": "Code example references AuthController.authenticate() method which was renamed to AuthController.verify() in app/controllers/auth_controller.rb",
-              "severity": "high",
-              "suggestion": "Update code example to use AuthController.verify(token)"
+              "section_name": "Authentication section",
+              "line_reference": "",
+              "outdated_content": "Contains code example using AuthController.authenticate() method which was renamed to verify()",
+              "suggested_change": "Update the code example to use AuthController.verify() instead of authenticate()",
+              "severity": "high"
             }
           ],
           "overall_priority": "high"
@@ -616,7 +616,14 @@ class DocumentationDriftDetective
       ]
       ```
 
-      Severity: "high" (broken examples/links), "medium" (misleading info), "low" (minor inaccuracies)
+      **Required fields:**
+      - `section_name`: Name of the section (NO line numbers unless you can see them in the content)
+      - `line_reference`: Leave empty "" unless you can identify specific lines from the provided content
+      - `outdated_content`: ONE sentence describing what is outdated
+      - `suggested_change`: ONE sentence describing the fix
+      - `severity`: "high" (broken examples/links), "medium" (misleading info), "low" (minor inaccuracies)
+
+      Severity: "high", "medium", "low"
       Priority: "high", "medium", "low"
     PROMPT
   end
@@ -635,9 +642,48 @@ class DocumentationDriftDetective
         json_content = match[1].strip if match
       end
       
-      JSON.parse(json_content || response)
+      parsed_response = JSON.parse(json_content || response)
+      
+      # Validate and normalize the schema
+      normalized_response = parsed_response.map do |result|
+        # Ensure required fields exist
+        result['path'] = result['path'] || 'unknown'
+        result['overall_priority'] = result['overall_priority'] || 'medium'
+        
+        # Normalize issues array
+        if result['issues']
+          result['issues'] = result['issues'].map do |issue|
+            normalized_issue = {
+              'section_name' => issue['section_name'] || issue['section'] || 'Unknown section',
+              'line_reference' => issue['line_reference'] || '',
+              'outdated_content' => issue['outdated_content'] || issue['issue'] || 'Content may be outdated',
+              'suggested_change' => issue['suggested_change'] || issue['suggestion'] || 'Review and update as needed',
+              'severity' => issue['severity'] || 'medium'
+            }
+            
+            # Validate sentence length (should be reasonable)
+            if normalized_issue['outdated_content'].length > 200
+              puts "⚠️  Long outdated_content field detected - consider shortening"
+            end
+            if normalized_issue['suggested_change'].length > 200
+              puts "⚠️  Long suggested_change field detected - consider shortening"
+            end
+            
+            normalized_issue
+          end
+        else
+          result['issues'] = []
+        end
+        
+        result
+      end
+      
+      puts "✅ Successfully parsed and normalized analysis response with #{normalized_response.length} files"
+      puts "📊 Total issues found: #{normalized_response.sum { |r| r['issues'].length }}"
+      normalized_response
     rescue JSON::ParserError => e
       puts "⚠️  Error parsing analysis response: #{e.message}"
+      puts "📋 Raw response preview: #{response[0..200]}#{response.length > 200 ? '...' : ''}"
       []
     end
   end
@@ -769,32 +815,26 @@ class DocumentationDriftDetective
         issue = item[:issue]
         
         # Parse section information to build a specific link
-        section_text = issue['section']
-        line_range = nil
+        section_name = issue['section_name'] || issue['section'] || 'Unknown section'
+        line_reference = issue['line_reference'] || ''
         
-        # Extract line information if present
-        if section_text&.match?(/lines?\s+\d+/i)
-          line_match = section_text.match(/(.*?),?\s*(lines?\s+\d+(?:-\d+)?)/i)
-          if line_match
-            section_name = line_match[1].strip
-            line_range = line_match[2]
+        # Build the file link
+        if line_reference && !line_reference.empty?
+          # Try to extract line numbers from line_reference
+          if line_reference.match?(/\d+/)
+            issue_link = build_file_link(file_path, section_name, line_reference)
           else
-            section_name = section_text
+            issue_link = build_file_link(file_path, section_name, nil)
           end
         else
-          section_name = section_text
+          issue_link = build_file_link(file_path, section_name, nil)
         end
         
-        # Build the file link with line numbers if available
-        issue_link = build_file_link(file_path, section_name, line_range)
+        # Format using the new structured fields
+        outdated_content = issue['outdated_content'] || issue['issue'] || 'Content may be outdated'
+        suggested_change = issue['suggested_change'] || issue['suggestion'] || 'Review and update as needed'
         
-        # Format the issue description with context if available
-        issue_description = issue['suggestion']
-        if issue['existing_content'] && !issue['existing_content'].empty?
-          issue_description = "**Outdated content:** `#{issue['existing_content']}` - #{issue['suggestion']}"
-        end
-        
-        content << "* #{issue_link}: #{issue_description}\n"
+        content << "* #{issue_link}: #{outdated_content} #{suggested_change}\n"
       end
       
       content << "\n"
@@ -930,7 +970,7 @@ class DocumentationDriftDetective
     }
   end
 
-  def build_file_link(file_path, section_text = nil, line_range = nil)
+  def build_file_link(file_path, section_name = nil, line_reference = nil)
     # Get PR info for the head branch
     pr_info = @pr_info ||= get_pr_info
     return file_path unless pr_info
@@ -938,24 +978,24 @@ class DocumentationDriftDetective
     branch = pr_info[:head_branch]
     base_url = "https://github.com/#{@repository}/blob/#{branch}/#{file_path}"
     
-    if line_range && line_range.match?(/(\d+)/)
-      # Extract line numbers from text like "lines 5-10" or "line 42"
-      lines = line_range.scan(/\d+/)
-      if lines.length == 2
-        url = "#{base_url}#L#{lines[0]}-L#{lines[1]}"
-      elsif lines.length == 1
-        url = "#{base_url}#L#{lines[0]}"
-      else
-        url = base_url
-      end
-    else
-      url = base_url
-    end
+    # Handle line references more simply
+    url = if line_reference && line_reference.match?(/\d+/)
+            # Extract just the numbers and create line anchor
+            lines = line_reference.scan(/\d+/)
+            if lines.length == 2
+              "#{base_url}#L#{lines[0]}-L#{lines[1]}"
+            elsif lines.length == 1
+              "#{base_url}#L#{lines[0]}"
+            else
+              base_url
+            end
+          else
+            base_url
+          end
     
-    display_text = if section_text && line_range
-                     "#{File.basename(file_path)} - #{section_text}, #{line_range}"
-                   elsif section_text
-                     "#{File.basename(file_path)} - #{section_text}"
+    # Create cleaner display text
+    display_text = if section_name && !section_name.empty?
+                     "#{File.basename(file_path)} (#{section_name})"
                    else
                      File.basename(file_path)
                    end
