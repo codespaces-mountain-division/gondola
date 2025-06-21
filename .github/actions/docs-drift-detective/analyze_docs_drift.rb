@@ -369,18 +369,25 @@ class DocumentationDriftDetective
 
       ## FOCUS ON DRIFT DETECTION
       
-      Only flag documentation that is likely to contain OUTDATED information due to these specific changes. Ask yourself:
+      Only flag documentation that is likely to contain FACTUALLY INCORRECT information due to these specific changes. The key test is: **Would a user following this documentation encounter broken code, wrong behavior, or incorrect information?**
       
-      1. **Does this doc likely reference the changed files/functions?**
-      2. **Would existing examples or instructions become incorrect?**
-      3. **Are there specific APIs/endpoints that might now be wrong?**
-      4. **Do configuration steps reference things that changed?**
+      Ask yourself these specific questions:
+      
+      1. **Does this doc contain exact references to changed files/functions/classes?**
+      2. **Are there code examples that would now fail or behave differently?**
+      3. **Does it describe APIs/endpoints/methods that were modified or removed?**
+      4. **Are there step-by-step instructions that would no longer work?**
+      5. **Does it reference specific configuration values, paths, or parameters that changed?**
+      
+      **CRITICAL: Being "related" is NOT enough - content must be factually wrong**
       
       **DO NOT flag docs just because:**
-      - They could benefit from general improvements
-      - They're missing information (unless it was removed in this PR)
+      - They're about the same general topic/area as the changes
+      - They could benefit from general improvements or additions
+      - They're missing new information (unless old info was specifically removed)
       - They could have more examples added
-      - They're in a related technical area but don't reference the changed code
+      - They mention the same files/components but describe different aspects that remain valid
+      - They're high-level guides that remain accurate despite implementation changes
 
       **Analysis strategy**: #{get_ai_analysis_strategy(@analysis_scope)}
 
@@ -390,7 +397,7 @@ class DocumentationDriftDetective
         {
           "path": "docs/api.md",
           "likelihood": "high",
-          "reasoning": "Contains code examples using AuthController methods that were renamed in this PR",
+          "reasoning": "Contains specific code examples calling AuthController.authenticate() which was renamed to verify() in this PR - users would get method not found errors",
           "priority": 3
         }
       ]
@@ -570,32 +577,39 @@ class DocumentationDriftDetective
 
       ## CRITICAL INSTRUCTIONS
       
-      **ONLY flag content that is OUTDATED due to these specific code changes.**
+      **Your ONLY job is to identify content that has become FACTUALLY INCORRECT due to these specific code changes.**
       
-      **DO NOT suggest:**
-      - General improvements or enhancements
-      - Additional content that could be added
-      - Style or formatting changes
-      - Missing sections that were never there
-      - Best practices that aren't related to the code changes
+      **The key test: Would a user following this documentation encounter broken functionality, wrong behavior, or get incorrect results?**
       
-      **DO flag content that:**
-      1. **References specific files/functions that were modified** - Look for exact matches
-      2. **Contains code examples using the changed code** - Check for outdated syntax/APIs
-      3. **Describes processes that the code changes modified** - Only if the docs explicitly describe the old process
-      4. **Has configuration steps that no longer work** - Due to the specific changes made
-      5. **Contains outdated URLs, paths, or endpoints** - That were changed in this PR
+      **ONLY flag content that:**
+      1. **Contains exact code examples that now fail or behave differently** - Look for specific function calls, imports, syntax
+      2. **Describes specific processes/workflows that these changes broke** - Not general processes, but exact steps that no longer work
+      3. **References specific files, classes, methods, or endpoints that were renamed/removed/changed** - Must be exact matches, not just similar
+      4. **Has configuration examples with values/paths/settings that these changes invalidated** - Specific config that would now cause errors
+      5. **Contains URLs, endpoints, or API calls that these changes modified** - Must be specific technical references
+      
+      **DO NOT flag content that:**
+      - Is about the same general topic but describes different aspects that remain valid
+      - Mentions the same components but in ways that are still accurate
+      - Could be enhanced with new information (unless old information is now wrong)
+      - Is missing coverage of new features (unless it explicitly describes old behavior)
+      - Is a high-level guide that remains conceptually correct despite implementation changes
+      - Uses general terminology that might overlap with changed code but describes valid concepts
+      
+      **Example of what TO flag:** "Call AuthController.authenticate(token)" when that method was renamed to verify()
+      **Example of what NOT to flag:** "This app uses authentication" when AuthController methods changed but authentication still exists
 
       ## RESPONSE FORMAT REQUIREMENTS
       
       For each issue you identify:
       - `section_name`: Keep it simple - just the section name, NO line numbers
       - `line_reference`: Leave empty "" (do not make up line numbers)
-      - `outdated_content`: ONE clear sentence describing what is now wrong
-      - `suggested_change`: ONE clear sentence describing how to fix it
+      - `outdated_content`: ONE clear sentence describing what is now FACTUALLY WRONG or BROKEN
+      - `suggested_change`: ONE clear sentence describing how to fix the broken/incorrect content
       - Keep both sentences concise and actionable
+      - Focus on what would fail or mislead users, not what could be improved
 
-      **If the documentation doesn't contain anything that's specifically outdated by these changes, return an empty issues array.**
+      **If the documentation doesn't contain anything that's specifically broken or factually incorrect due to these changes, return an empty issues array.**
 
       Respond with JSON using this EXACT schema:
       ```json
@@ -606,8 +620,8 @@ class DocumentationDriftDetective
             {
               "section_name": "Authentication section",
               "line_reference": "",
-              "outdated_content": "Contains code example using AuthController.authenticate() method which was renamed to verify()",
-              "suggested_change": "Update the code example to use AuthController.verify() instead of authenticate()",
+              "outdated_content": "Shows code example `AuthController.authenticate(token)` but this method was renamed to `verify()` and would now throw a NoMethodError",
+              "suggested_change": "Update the code example to use `AuthController.verify(token)` instead of the removed authenticate method",
               "severity": "high"
             }
           ],
@@ -1276,15 +1290,15 @@ class DocumentationDriftDetective
   def get_ai_analysis_strategy(analysis_scope)
     case analysis_scope
     when 'narrow'
-      'Be very conservative - only flag documentation with direct, obvious references to the changed code. Focus on broken examples and clear factual errors.'
+      'Be very conservative - only flag documentation with explicit, exact references to the changed code that would now be factually wrong or cause failures. Require clear evidence of broken functionality.'
     when 'medium'
-      'Be selective - flag documentation that likely contains outdated references to the changed code. Focus on drift, not improvements.'
+      'Be selective - flag documentation that contains specific references to the changed code that would mislead users or cause errors. Focus on concrete drift, not general relatedness.'
     when 'wide'
-      'Be thorough - include documentation that might contain outdated content due to direct or indirect code relationships. Still focus on what\'s outdated, not what\'s missing.'
+      'Be thorough - include documentation that contains direct references to changed components where the information would now be incorrect. Still require factual incorrectness, not just topical overlap.'
     when 'aggressive'
-      'Be comprehensive - include any documentation that could potentially contain outdated information. But always focus on existing content that may now be wrong, not content that could be added.'
+      'Be comprehensive - include any documentation that contains specific technical details that these changes made factually incorrect. Focus on what would mislead or break for users, not general improvements.'
     else
-      'Focus on detecting outdated content rather than suggesting improvements. Only flag what may now be factually incorrect.'
+      'Focus on detecting factually incorrect content rather than related content. Only flag what would now cause user confusion or failures due to being wrong.'
     end
   end
 end
