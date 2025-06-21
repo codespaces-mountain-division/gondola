@@ -505,7 +505,9 @@ class DocumentationDriftDetective
     content = ""
     
     priority_results.each do |result|
-      content << "#### 📄 `#{result['path']}`\n\n"
+      file_path = result['path']
+      file_link = build_file_link(file_path)
+      content << "#### 📄 #{file_link}\n\n"
       
       if result['issues'] && result['issues'].any?
         result['issues'].each do |issue|
@@ -515,7 +517,25 @@ class DocumentationDriftDetective
           else '🔍'
           end
           
-          content << "#{severity_icon} **#{issue['section']}**\n"
+          # Parse section information to build a more specific link
+          section_text = issue['section']
+          line_range = nil
+          
+          # Extract line information if present (e.g., "lines 5-10", "line 42")
+          if section_text&.match?(/lines?\s+\d+/i)
+            line_match = section_text.match(/(.*?),?\s*(lines?\s+\d+(?:-\d+)?)/i)
+            if line_match
+              section_name = line_match[1].strip
+              line_range = line_match[2]
+              section_link = build_file_link(file_path, section_name, line_range)
+            else
+              section_link = "**#{section_text}**"
+            end
+          else
+            section_link = "**#{section_text}**"
+          end
+          
+          content << "#{severity_icon} #{section_link}\n"
           content << "- #{issue['issue']}\n"
           content << "- *Suggestion: #{issue['suggestion']}*\n\n"
         end
@@ -640,6 +660,51 @@ class DocumentationDriftDetective
   rescue => e
     puts "⚠️  Copilot API request failed: #{e.message}"
     nil
+  end
+
+  def get_pr_info
+    # Get PR details to get the head branch
+    pr_info = github_api_request("GET", "/repos/#{@repository}/pulls/#{@pr_number}")
+    return nil unless pr_info
+    
+    {
+      head_branch: pr_info['head']['ref'],
+      head_sha: pr_info['head']['sha'],
+      base_branch: pr_info['base']['ref']
+    }
+  end
+
+  def build_file_link(file_path, section_text = nil, line_range = nil)
+    # Get PR info for the head branch
+    pr_info = @pr_info ||= get_pr_info
+    return file_path unless pr_info
+    
+    branch = pr_info[:head_branch]
+    base_url = "https://github.com/#{@repository}/blob/#{branch}/#{file_path}"
+    
+    if line_range && line_range.match?(/(\d+)/)
+      # Extract line numbers from text like "lines 5-10" or "line 42"
+      lines = line_range.scan(/\d+/)
+      if lines.length == 2
+        url = "#{base_url}#L#{lines[0]}-L#{lines[1]}"
+      elsif lines.length == 1
+        url = "#{base_url}#L#{lines[0]}"
+      else
+        url = base_url
+      end
+    else
+      url = base_url
+    end
+    
+    display_text = if section_text && line_range
+                     "#{File.basename(file_path)} - #{section_text}, #{line_range}"
+                   elsif section_text
+                     "#{File.basename(file_path)} - #{section_text}"
+                   else
+                     File.basename(file_path)
+                   end
+    
+    "[#{display_text}](#{url})"
   end
 end
 
