@@ -18,7 +18,7 @@ on:
       analysis-scope:
         description: 'Analysis scope for documentation drift detection'
         required: false
-        default: 'medium'
+        default: 'narrow'
         type: choice
         options:
           - narrow
