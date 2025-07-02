@@ -1,0 +1,50 @@
+name: Documentation Memory Extractor
+description: 'Extract factual memories from documentation changes and store as git notes'
+inputs:
+  repository:
+    description: 'Repository in format owner/repo'
+    required: false
+    default: ${{ github.repository }}
+  commit-sha:
+    description: 'Commit SHA to analyze'
+    required: false
+    default: ${{ github.sha }}
+  docs-patterns:
+    description: 'Newline-separated patterns for documentation files'
+    required: false
+    default: |
+      **/*.md
+      **/*.markdown
+  exclude-patterns:
+    description: 'Newline-separated patterns for files to exclude'
+    required: false
+    default: |
+      node_modules/**
+      .git/**
+outputs:
+  memories-extracted:
+    description: 'Total number of memories extracted'
+    value: ${{ steps.extract.outputs.memories-extracted }}
+  files-processed:
+    description: 'Number of documentation files processed'
+    value: ${{ steps.extract.outputs.files-processed }}
+  commit-sha:
+    description: 'Commit SHA that was analyzed'
+    value: ${{ steps.extract.outputs.commit-sha }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Extract Documentation Memories
+      id: extract
+      shell: bash
+      run: |
+        cd ${{ github.action_path }}
+        ruby extract_doc_memories.rb \
+          --repository "${{ inputs.repository }}" \
+          --commit-sha "${{ inputs.commit-sha }}" \
+          --docs-patterns "${{ inputs.docs-patterns }}" \
+          --exclude-patterns "${{ inputs.exclude-patterns }}"
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+        COPILOT_TOKEN: ${{ github.token }}

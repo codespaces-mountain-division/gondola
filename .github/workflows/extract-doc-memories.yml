@@ -1,0 +1,57 @@
+name: Extract Documentation Memories
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - '**/*.md'
+      - '**/*.markdown'
+  pull_request:
+    branches: [main, master]
+    paths:
+      - '**/*.md'
+      - '**/*.markdown'
+    types: [closed]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  extract-memories:
+    name: Extract Documentation Memories
+    runs-on: ubuntu-latest
+    
+    # Only run on pushes to main/master, or when PRs are merged
+    if: |
+      github.event_name == 'push' || 
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for git notes
+      
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.1'
+      
+      - name: Extract Documentation Memories
+        uses: ./.github/actions/docs-memory-extractor
+        with:
+          repository: ${{ github.repository }}
+          commit-sha: ${{ github.sha }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # If you have a separate Copilot token, use it here:
+          # COPILOT_TOKEN: ${{ secrets.COPILOT_TOKEN }}
+      
+      - name: Summary
+        run: |
+          echo "## 🧠 Documentation Memory Extraction Complete" >> $GITHUB_STEP_SUMMARY
+          echo "- **Repository:** ${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Files processed:** ${{ steps.extract.outputs.files-processed || 'N/A' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Memories extracted:** ${{ steps.extract.outputs.memories-extracted || 'N/A' }}" >> $GITHUB_STEP_SUMMARY
