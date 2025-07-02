@@ -1,41 +1,62 @@
 {
   "repository": "codespaces-mountain-division/gondola",
-  "generated_at": "2025-07-02T18:16:10+00:00",
-  "total_files": 6,
-  "avg_code_sensitivity": 1.33,
-  "avg_staleness_risk": 2.0,
-  "avg_confidence": 0.84,
-  "high_sensitivity_files": 1,
-  "high_staleness_files": 2,
-  "high_risk_files": 3,
+  "generated_at": "2025-07-02T22:32:19+00:00",
+  "total_files": 10,
+  "avg_code_sensitivity": 1.4,
+  "avg_staleness_risk": 2.1,
+  "avg_confidence": 0.9,
+  "high_sensitivity_files": 2,
+  "high_staleness_files": 4,
+  "high_risk_files": 5,
   "sensitivity_distribution": {
-    "2": 2,
-    "0": 2,
-    "3": 1,
-    "1": 1
+    "0": 3,
+    "2": 3,
+    "3": 2,
+    "1": 2
   },
   "staleness_distribution": {
-    "3": 2,
-    "1": 2,
-    "2": 2
+    "1": 3,
+    "3": 4,
+    "2": 3
   },
   "top_patterns": {
-    "Documentation/Process": 4,
-    "Database/Schema": 2,
-    "Infrastructure/DevOps": 1,
-    "API/Routing": 1,
-    "Frontend/UI": 1,
+    "Documentation/Process": 3,
+    "Configuration/Environment": 3,
+    "Database/Schema": 3,
+    "Infrastructure/DevOps": 2,
+    "Testing/QA": 2,
+    "API/Routing": 2,
+    "Frontend/UI": 2,
+    "Integration/External": 1,
     "Security/Compliance": 1
   },
   "top_categories": {
-    "Setup Guide (Comprehensive)": 1,
-    "Process Documentation": 1,
+    "Process Documentation": 2,
+    "Setup Guide (Comprehensive)": 2,
     "Architecture Deep-Dive": 1,
+    "FAQ/Help": 1,
+    "Tutorial (Step-by-Step)": 1,
     "Personal Notes": 1,
     "Reference Documentation": 1,
-    "FAQ/Help": 1
+    "Policy/Compliance": 1
   },
   "files": [
+    {
+      "path": ".github/ACTIONS_SETUP.md",
+      "sha": "da39a3ee5e6b4b0d3255bfef95601890afd80709",
+      "code_sensitivity_level": 0,
+      "staleness_risk": 1,
+      "technical_patterns": [
+        "Documentation/Process"
+      ],
+      "doc_category": "Process Documentation",
+      "confidence_score": 0.9,
+      "key_indicators": [
+        "empty content",
+        "general setup instructions"
+      ],
+      "classified_at": "2025-07-02T22:32:19+00:00"
+    },
     {
       "path": ".github/DOCS_DRIFT_README.md",
       "sha": "aabacde4c8119a82227119f515705179aaa6e893",
@@ -43,32 +64,87 @@
       "staleness_risk": 3,
       "technical_patterns": [
         "Infrastructure/DevOps",
-        "Documentation/Process"
+        "Testing/QA",
+        "Configuration/Environment"
       ],
       "doc_category": "Setup Guide (Comprehensive)",
       "confidence_score": 0.95,
       "key_indicators": [
         "GitHub Actions workflow",
-        "repository configuration",
-        "automation setup"
+        "specific file paths",
+        "repository settings"
       ],
-      "classified_at": "2025-07-02T18:16:09+00:00"
+      "classified_at": "2025-07-02T22:32:19+00:00"
     },
     {
-      "path": "APP_GUIDE.md",
-      "sha": "098ab1337ea97fbcc87071f5e4c22944aaabd4aa",
+      "path": ".github/README.md",
+      "sha": "7b68d82c98e5da59af7e68fa29cbe93e360f2118",
+      "code_sensitivity_level": 2,
+      "staleness_risk": 3,
+      "technical_patterns": [
+        "Infrastructure/DevOps",
+        "Testing/QA",
+        "Configuration/Environment"
+      ],
+      "doc_category": "Setup Guide (Comprehensive)",
+      "confidence_score": 0.95,
+      "key_indicators": [
+        "GitHub Actions workflow",
+        "specific file paths",
+        "repository settings"
+      ],
+      "classified_at": "2025-07-02T22:32:19+00:00"
+    },
+    {
+      "path": ".github/SETUP_GUIDE.md",
+      "sha": "da39a3ee5e6b4b0d3255bfef95601890afd80709",
       "code_sensitivity_level": 0,
       "staleness_risk": 1,
       "technical_patterns": [
         "Documentation/Process"
       ],
       "doc_category": "Process Documentation",
-      "confidence_score": 0.8,
+      "confidence_score": 0.9,
+      "key_indicators": [
+        "empty content",
+        "general setup instructions"
+      ],
+      "classified_at": "2025-07-02T22:32:19+00:00"
+    },
+    {
+      "path": ".github/actions/docs-memory-extractor/README.md",
+      "sha": "a59da9377c5ae0f745841a2b96e909ca532cf508",
+      "code_sensitivity_level": 3,
+      "staleness_risk": 3,
+      "technical_patterns": [
+        "API/Routing",
+        "Configuration/Environment",
+        "Integration/External"
+      ],
+      "doc_category": "Architecture Deep-Dive",
+      "confidence_score": 0.92,
+      "key_indicators": [
+        "AI-based memory extraction",
+        "specific technical inputs",
+        "GitHub Action usage"
+      ],
+      "classified_at": "2025-07-02T22:32:19+00:00"
+    },
+    {
+      "path": "APP_GUIDE.md",
+      "sha": "098ab1337ea97fbcc87071f5e4c22944aaabd4aa",
+      "code_sensitivity_level": 1,
+      "staleness_risk": 2,
+      "technical_patterns": [
+        "Frontend/UI"
+      ],
+      "doc_category": "FAQ/Help",
+      "confidence_score": 0.85,
       "key_indicators": [
         "general application description",
-        "non-technical overview"
+        "non-specific technical details"
       ],
-      "classified_at": "2025-07-02T18:16:09+00:00"
+      "classified_at": "2025-07-02T22:32:19+00:00"
     },
     {
       "path": "POSTS_GUIDE.md",
@@ -76,18 +152,18 @@
       "code_sensitivity_level": 3,
       "staleness_risk": 3,
       "technical_patterns": [
-        "API/Routing",
         "Database/Schema",
+        "API/Routing",
         "Frontend/UI"
       ],
-      "doc_category": "Architecture Deep-Dive",
-      "confidence_score": 0.9,
+      "doc_category": "Tutorial (Step-by-Step)",
+      "confidence_score": 0.95,
       "key_indicators": [
+        "CRUD operations",
         "database schema details",
-        "RESTful routes",
-        "model validations"
+        "RESTful routes"
       ],
-      "classified_at": "2025-07-02T18:16:09+00:00"
+      "classified_at": "2025-07-02T22:32:19+00:00"
     },
     {
       "path": "README.md",
@@ -98,12 +174,12 @@
         "Documentation/Process"
       ],
       "doc_category": "Personal Notes",
-      "confidence_score": 0.75,
+      "confidence_score": 0.8,
       "key_indicators": [
-        "dummy repository",
-        "placeholder content"
+        "dummy content",
+        "non-technical description"
       ],
-      "classified_at": "2025-07-02T18:16:09+00:00"
+      "classified_at": "2025-07-02T22:32:19+00:00"
     },
     {
       "path": "docs/database.md",
@@ -114,30 +190,29 @@
         "Database/Schema"
       ],
       "doc_category": "Reference Documentation",
-      "confidence_score": 0.85,
+      "confidence_score": 0.88,
       "key_indicators": [
         "specific feature mention",
         "database-related content"
       ],
-      "classified_at": "2025-07-02T18:16:09+00:00"
+      "classified_at": "2025-07-02T22:32:19+00:00"
     },
     {
       "path": "docs/team.md",
-      "sha": "99c5383820f9ef4dd030c6e914c6305c052253ac",
+      "sha": "c3464501d87052665fb3eb458d2761d4e4421009",
       "code_sensitivity_level": 1,
       "staleness_risk": 2,
       "technical_patterns": [
-        "Documentation/Process",
+        "Database/Schema",
         "Security/Compliance"
       ],
-      "doc_category": "FAQ/Help",
-      "confidence_score": 0.8,
+      "doc_category": "Policy/Compliance",
+      "confidence_score": 0.87,
       "key_indicators": [
         "team roles",
-        "security expertise",
-        "general team information"
+        "specific technical expertise"
       ],
-      "classified_at": "2025-07-02T18:16:09+00:00"
+      "classified_at": "2025-07-02T22:32:19+00:00"
     }
   ]
 }
