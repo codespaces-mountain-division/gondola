@@ -1,23 +1,23 @@
 {
   "repository": "codespaces-mountain-division/gondola",
-  "generated_at": "2025-06-21T07:14:10+00:00",
+  "generated_at": "2025-07-02T18:16:10+00:00",
   "total_files": 6,
-  "avg_code_sensitivity": 1.0,
-  "avg_staleness_risk": 1.83,
-  "avg_confidence": 0.83,
+  "avg_code_sensitivity": 1.33,
+  "avg_staleness_risk": 2.0,
+  "avg_confidence": 0.84,
   "high_sensitivity_files": 1,
   "high_staleness_files": 2,
-  "high_risk_files": 2,
+  "high_risk_files": 3,
   "sensitivity_distribution": {
-    "2": 1,
-    "0": 3,
+    "2": 2,
+    "0": 2,
     "3": 1,
     "1": 1
   },
   "staleness_distribution": {
     "3": 2,
-    "1": 3,
-    "2": 1
+    "1": 2,
+    "2": 2
   },
   "top_patterns": {
     "Documentation/Process": 4,
@@ -28,11 +28,12 @@
     "Security/Compliance": 1
   },
   "top_categories": {
-    "Process Documentation": 2,
     "Setup Guide (Comprehensive)": 1,
+    "Process Documentation": 1,
     "Architecture Deep-Dive": 1,
     "Personal Notes": 1,
-    "Reference Documentation": 1
+    "Reference Documentation": 1,
+    "FAQ/Help": 1
   },
   "files": [
     {
@@ -45,13 +46,13 @@
         "Documentation/Process"
       ],
       "doc_category": "Setup Guide (Comprehensive)",
-      "confidence_score": 0.9,
+      "confidence_score": 0.95,
       "key_indicators": [
         "GitHub Actions workflow",
         "repository configuration",
         "automation setup"
       ],
-      "classified_at": "2025-06-21T07:14:09+00:00"
+      "classified_at": "2025-07-02T18:16:09+00:00"
     },
     {
       "path": "APP_GUIDE.md",
@@ -62,12 +63,12 @@
         "Documentation/Process"
       ],
       "doc_category": "Process Documentation",
-      "confidence_score": 0.75,
+      "confidence_score": 0.8,
       "key_indicators": [
         "general application description",
         "non-technical overview"
       ],
-      "classified_at": "2025-06-21T07:14:09+00:00"
+      "classified_at": "2025-07-02T18:16:09+00:00"
     },
     {
       "path": "POSTS_GUIDE.md",
@@ -80,62 +81,63 @@
         "Frontend/UI"
       ],
       "doc_category": "Architecture Deep-Dive",
-      "confidence_score": 0.95,
+      "confidence_score": 0.9,
       "key_indicators": [
         "database schema details",
         "RESTful routes",
         "model validations"
       ],
-      "classified_at": "2025-06-21T07:14:09+00:00"
+      "classified_at": "2025-07-02T18:16:09+00:00"
     },
     {
       "path": "README.md",
-      "sha": "964c57c4daf1d7c8bdce546372eb5d4fee4c311b",
+      "sha": "31e5387d0b7c83f3de21d8ddfa34cfbd0f882f87",
       "code_sensitivity_level": 0,
       "staleness_risk": 1,
       "technical_patterns": [
         "Documentation/Process"
       ],
       "doc_category": "Personal Notes",
-      "confidence_score": 0.7,
+      "confidence_score": 0.75,
       "key_indicators": [
         "dummy repository",
-        "minimal content"
+        "placeholder content"
       ],
-      "classified_at": "2025-06-21T07:14:09+00:00"
+      "classified_at": "2025-07-02T18:16:09+00:00"
     },
     {
       "path": "docs/database.md",
       "sha": "a604965cfca18422cf72f0cffbc61e67f4e70f74",
-      "code_sensitivity_level": 1,
+      "code_sensitivity_level": 2,
       "staleness_risk": 2,
       "technical_patterns": [
         "Database/Schema"
       ],
       "doc_category": "Reference Documentation",
-      "confidence_score": 0.8,
+      "confidence_score": 0.85,
       "key_indicators": [
-        "database-related note",
-        "specific feature mention"
+        "specific feature mention",
+        "database-related content"
       ],
-      "classified_at": "2025-06-21T07:14:09+00:00"
+      "classified_at": "2025-07-02T18:16:09+00:00"
     },
     {
       "path": "docs/team.md",
       "sha": "99c5383820f9ef4dd030c6e914c6305c052253ac",
-      "code_sensitivity_level": 0,
-      "staleness_risk": 1,
+      "code_sensitivity_level": 1,
+      "staleness_risk": 2,
       "technical_patterns": [
         "Documentation/Process",
         "Security/Compliance"
       ],
-      "doc_category": "Process Documentation",
-      "confidence_score": 0.85,
+      "doc_category": "FAQ/Help",
+      "confidence_score": 0.8,
       "key_indicators": [
         "team roles",
-        "non-technical descriptions"
+        "security expertise",
+        "general team information"
       ],
-      "classified_at": "2025-06-21T07:14:09+00:00"
+      "classified_at": "2025-07-02T18:16:09+00:00"
     }
   ]
 }
