@@ -1,0 +1,24 @@
+# POSTS_GUIDE.md
+The Rails application includes a blog post management system accessible only to users with 'Pirate' or 'Privateer' roles.
+The posts feature provides a full CRUD interface with publishing capabilities.
+The `posts` table in the database includes the fields: `id`, `title`, `content`, `author`, `published_at`, `created_at`, and `updated_at`.
+The `title` field in the `posts` table is required and has a maximum length of 255 characters.
+The `content` field in the `posts` table is required and uses a text field.
+The `author` field in the `posts` table is required.
+The `published_at` field in the `posts` table is nullable and stores the publication timestamp.
+Posts are saved as drafts by default, with no `published_at` date.
+Published posts display their publication date.
+The application includes RESTful routes for posts, with additional custom member actions for publishing and unpublishing posts.
+The `posts` resource routes include: `GET /posts`, `GET /posts/:id`, `GET /posts/new`, `POST /posts`, `GET /posts/:id/edit`, `PATCH /posts/:id`, `DELETE /posts/:id`, `PATCH /posts/:id/publish`, and `PATCH /posts/:id/unpublish`.
+The `Post` model includes validations for `title`, `content`, and `author` fields.
+The `Post` model includes the scope `published`, which filters posts with a non-null `published_at` field.
+The `Post` model includes the scope `recent`, which orders posts by `created_at` in descending order.
+The `Post` model includes instance methods `published?`, `publish!`, and `unpublish!` for checking and modifying publication status.
+The application uses a clean, responsive design with embedded CSS and visual indicators for published and draft posts.
+Form validation prevents empty required fields and displays errors in the UI.
+The application does not implement soft deletion; post deletions are permanent.
+The application includes seed data with example posts, including published and draft posts.
+Sample data can be reset using the `rails db:seed` command.
+The file structure includes `post.rb` for the Post model, `posts_controller.rb` for CRUD and publish actions, and views for listing, showing, creating, and editing posts.
+The `routes.rb` file defines RESTful routes and custom actions for the posts feature.
+Future enhancements for the posts feature could include user authentication, categories, tags, rich text editing, image uploads, comments, SEO-friendly URLs, post scheduling, and search functionality.
