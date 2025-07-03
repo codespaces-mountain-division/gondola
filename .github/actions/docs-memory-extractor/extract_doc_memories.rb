@@ -13,7 +13,18 @@ require 'digest'
 class DocumentationMemoryExtractor
   def initialize(options = {})
     @github_token = ENV['GITHUB_TOKEN'] || options[:github_token]
+    
+    # Debug token assignment
+    puts "🔍 Debug: ENV['COPILOT_TOKEN'] present: #{!ENV['COPILOT_TOKEN'].nil?}"
+    puts "🔍 Debug: ENV['COPILOT_TOKEN'] length: #{ENV['COPILOT_TOKEN']&.length || 'nil'}"
+    puts "🔍 Debug: options[:copilot_token] present: #{!options[:copilot_token].nil?}"
+    puts "🔍 Debug: @github_token length: #{@github_token&.length || 'nil'}"
+    
     @copilot_token = ENV['COPILOT_TOKEN'] || options[:copilot_token] || @github_token
+    
+    puts "🔍 Debug: Final @copilot_token length: #{@copilot_token&.length || 'nil'}"
+    puts "🔍 Debug: Tokens are same: #{@copilot_token == @github_token}"
+    
     @repository = options[:repository]
     @commit_sha = options[:commit_sha]
     @docs_patterns = parse_patterns(options[:docs_patterns] || "**/*.md\n**/*.markdown")
@@ -409,8 +420,12 @@ class DocumentationMemoryExtractor
     
     response = http.request(request)
     
+    puts "🔍 Debug: Response code: #{response.code}"
+    puts "🔍 Debug: Response headers: #{response.to_hash}"
+    
     if response.code.to_i >= 400
       puts "⚠️  Copilot API error: #{response.code} - #{response.body}"
+      puts "🔍 Debug: Full response body: #{response.body[0..500]}"
       return nil
     end
     
