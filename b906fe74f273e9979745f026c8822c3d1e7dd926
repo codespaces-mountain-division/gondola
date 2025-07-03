@@ -1,0 +1,28 @@
+# notes/documentation/memories/29b660e07aa14affcbeb62674beb805ccf8dab99.md
+The Rails application includes a blog post management system accessible only to users with 'Privateer' or 'Pirate' roles.
+The posts feature provides a full CRUD interface for blog posts, including create, read, update, delete, and publish functionalities.
+The `posts` database table includes the fields: `id`, `title`, `content`, `author`, `published_at`, `created_at`, and `updated_at`.
+The `title` field in the `posts` table is required and has a maximum length of 255 characters.
+The `content` field in the `posts` table is required and is a text field.
+The `author` field in the `posts` table is required.
+The `published_at` field in the `posts` table is nullable and stores the publication timestamp.
+Posts are saved as drafts by default, with no `published_at` value set.
+Published posts have a `published_at` timestamp, while drafts do not.
+The application provides RESTful routes for posts, including custom member actions for publishing and unpublishing posts.
+The following RESTful routes are available for posts: `GET /posts`, `GET /posts/:id`, `GET /posts/new`, `POST /posts`, `GET /posts/:id/edit`, `PATCH /posts/:id`, `DELETE /posts/:id`, `PATCH /posts/:id/publish`, and `PATCH /posts/:id/unpublish`.
+The `Post` model includes validations for the presence of `title`, `content`, and `author`.
+The `Post` model includes a validation for `title` length, with a maximum of 255 characters.
+The `Post` model includes a `published` scope to filter posts with a non-null `published_at` field.
+The `Post` model includes a `recent` scope to order posts by `created_at` in descending order.
+The `Post` model includes instance methods: `published?` to check if a post is published, `publish!` to publish a post, and `unpublish!` to revert a post to draft status.
+The application uses a responsive design for the posts feature, ensuring compatibility with mobile devices.
+The posts feature includes visual indicators to differentiate between published posts and drafts.
+Form validation is implemented to prevent empty required fields during post creation and editing.
+The application does not implement soft delete for posts; deletions are permanent.
+The application includes seed data with example posts: a welcome post (published), a Rails tutorial post (published), and a draft post example (unpublished).
+Sample data can be reset using the `rails db:seed` command.
+The `posts_controller.rb` file handles full CRUD operations and custom publish/unpublish actions for posts.
+The `routes.rb` file defines RESTful routes for posts, including custom member actions for publishing and unpublishing.
+The `*_create_posts.rb` migration file defines the schema for the `posts` table.
+The `posts_helper.rb` file contains auto-generated view helpers for the posts feature.
+Future enhancements for the posts feature could include user authentication, categories and tags, a rich text editor, image uploads, comments, SEO-friendly URLs, post scheduling, and search functionality.
