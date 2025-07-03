@@ -35,6 +35,7 @@ class DocumentationMemoryExtractor
     @commit_sha = options[:commit_sha]
     @docs_patterns = parse_patterns(options[:docs_patterns] || "**/*.md\n**/*.markdown")
     @exclude_patterns = parse_patterns(options[:exclude_patterns] || "node_modules/**\n.git/**")
+    @operation = options[:operation] || 'extract'
     
     validate_inputs!
   end
@@ -145,8 +146,16 @@ class DocumentationMemoryExtractor
   def validate_inputs!
     raise "GitHub token is required" unless @github_token
     raise "Repository is required" unless @repository
-    raise "Commit SHA is required" unless @commit_sha
-    raise "Copilot token is required" unless @copilot_token
+    
+    # Only require commit SHA for operations that need it
+    if @operation == 'extract' || @operation == 'get_note' || @operation == 'check_note'
+      raise "Commit SHA is required" unless @commit_sha
+    end
+    
+    # Only require Copilot token for extraction operations
+    if @operation == 'extract'
+      raise "Copilot token is required" unless @copilot_token
+    end
     
     # Additional token validation
     if @copilot_token&.include?("\n") || @copilot_token&.include?(" ")
@@ -383,18 +392,50 @@ class DocumentationMemoryExtractor
     namespace = "documentation/memories"
     
     puts "📝 Creating git note in namespace: #{namespace}"
+    puts "🔍 Debug: Target commit SHA: #{@commit_sha}"
+    puts "🔍 Debug: Note content length: #{note_content.length} characters"
     
     # Configure git identity for GitHub Actions environment
     configure_git_identity
     
+    # Fetch remote notes FIRST to avoid conflicts
+    puts "🔄 Fetching remote git notes before creating new note..."
+    fetch_cmd = "git fetch origin +refs/notes/#{namespace}:refs/notes/#{namespace} 2>&1"
+    puts "🔍 Debug: Fetching notes: #{fetch_cmd}"
+    fetch_result = `#{fetch_cmd}`
+    fetch_exit_code = $?.exitstatus
+    puts "🔍 Debug: Fetch exit code: #{fetch_exit_code}"
+    puts "🔍 Debug: Fetch result: #{fetch_result.strip}" unless fetch_result.strip.empty?
+    
+    if fetch_exit_code == 0
+      puts "✅ Successfully fetched remote git notes"
+    else
+      puts "ℹ️  No remote git notes to fetch (or fetch failed): #{fetch_result.strip}"
+      # This is not necessarily an error - might be the first note
+    end
+    
     # Write note content to a temporary file
     temp_file = "/tmp/git_note_#{@commit_sha}"
     File.write(temp_file, note_content)
+    puts "🔍 Debug: Temp file created at: #{temp_file}"
+    puts "🔍 Debug: Temp file size: #{File.size(temp_file)} bytes"
+    
+    # Verify the commit exists
+    commit_check_cmd = "git cat-file -e #{@commit_sha} 2>&1"
+    commit_check_result = `#{commit_check_cmd}`
+    commit_check_exit = $?.exitstatus
+    puts "🔍 Debug: Commit exists check: #{commit_check_exit == 0 ? 'SUCCESS' : 'FAILED'}"
+    if commit_check_exit != 0
+      puts "❌ Commit #{@commit_sha} does not exist: #{commit_check_result}"
+      File.delete(temp_file) if File.exist?(temp_file)
+      return false
+    end
     
     # Check if a note already exists for this commit
     existing_note_cmd = "git notes --ref=#{namespace} show #{@commit_sha} 2>/dev/null"
     existing_note_result = `#{existing_note_cmd}`
     note_exists = $?.exitstatus == 0
+    puts "🔍 Debug: Note already exists: #{note_exists}"
     
     # Use appropriate git notes command
     if note_exists
@@ -409,6 +450,8 @@ class DocumentationMemoryExtractor
     
     result = `#{git_cmd}`
     exit_code = $?.exitstatus
+    puts "🔍 Debug: Git notes add result: #{result.strip}" unless result.strip.empty?
+    puts "🔍 Debug: Git notes add exit code: #{exit_code}"
     
     # Clean up temp file
     File.delete(temp_file) if File.exist?(temp_file)
@@ -418,25 +461,40 @@ class DocumentationMemoryExtractor
       puts "📝 Note stored in namespace: #{namespace}"
       puts "🔗 Retrieve via: git notes --ref=#{namespace} show #{@commit_sha}"
       
-      # Fetch remote notes first to avoid conflicts
-      puts "🔄 Fetching remote git notes..."
-      fetch_cmd = "git fetch origin +refs/notes/#{namespace}:refs/notes/#{namespace} 2>&1"
-      puts "🔍 Debug: Fetching notes: #{fetch_cmd}"
-      fetch_result = `#{fetch_cmd}`
-      fetch_exit_code = $?.exitstatus
-      
-      if fetch_exit_code == 0
-        puts "✅ Successfully fetched remote git notes"
+      # Immediately verify the note was created
+      verify_cmd = "git notes --ref=#{namespace} show #{@commit_sha} 2>&1"
+      puts "🔍 Debug: Verifying note creation: #{verify_cmd}"
+      verify_result = `#{verify_cmd}`
+      verify_exit = $?.exitstatus
+      puts "🔍 Debug: Verification exit code: #{verify_exit}"
+      if verify_exit == 0
+        puts "✅ Note verification successful - note exists locally"
+        puts "🔍 Debug: Note content preview: #{verify_result[0..100]}..."
       else
-        puts "ℹ️  No remote git notes to fetch (or fetch failed): #{fetch_result.strip}"
-        # This is not necessarily an error - might be the first note or a conflict
+        puts "❌ Note verification failed: #{verify_result.strip}"
+        return false
       end
       
-      # Try to push the notes to remote
+      # List all notes to see what's actually stored
+      list_cmd = "git notes --ref=#{namespace} list 2>&1"
+      puts "🔍 Debug: Listing all notes: #{list_cmd}"
+      list_result = `#{list_cmd}`
+      list_exit = $?.exitstatus
+      puts "🔍 Debug: List notes exit code: #{list_exit}"
+      puts "🔍 Debug: All notes in namespace:"
+      if list_exit == 0 && !list_result.strip.empty?
+        list_result.lines.each { |line| puts "   #{line.strip}" }
+      else
+        puts "   No notes found or error: #{list_result.strip}"
+      end
+      
+      # Now push the notes to remote
       push_cmd = "git push origin refs/notes/#{namespace} 2>&1"
       puts "🔍 Debug: Pushing notes: #{push_cmd}"
       push_result = `#{push_cmd}`
       push_exit_code = $?.exitstatus
+      puts "🔍 Debug: Push exit code: #{push_exit_code}"
+      puts "🔍 Debug: Push result: #{push_result.strip}" unless push_result.strip.empty?
       
       if push_exit_code == 0
         puts "✅ Successfully pushed git notes to remote"
@@ -450,6 +508,8 @@ class DocumentationMemoryExtractor
           puts "🔍 Debug: Force pushing notes: #{force_push_cmd}"
           force_push_result = `#{force_push_cmd}`
           force_push_exit_code = $?.exitstatus
+          puts "🔍 Debug: Force push exit code: #{force_push_exit_code}"
+          puts "🔍 Debug: Force push result: #{force_push_result.strip}" unless force_push_result.strip.empty?
           
           if force_push_exit_code == 0
             puts "✅ Successfully force-pushed git notes to remote"
@@ -648,11 +708,13 @@ if __FILE__ == $0
   end.parse!
   
   begin
-    extractor = DocumentationMemoryExtractor.new(options)
-    
     if options[:get_note]
+      options[:operation] = 'get_note'
+      extractor = DocumentationMemoryExtractor.new(options)
       extractor.get_git_note
     elsif options[:check_note]
+      options[:operation] = 'check_note'
+      extractor = DocumentationMemoryExtractor.new(options)
       if extractor.has_git_note?
         puts "✅ Git note exists for commit #{options[:commit_sha] || 'HEAD'}"
         exit 0
@@ -661,8 +723,12 @@ if __FILE__ == $0
         exit 1
       end
     elsif options[:list_notes]
+      options[:operation] = 'list_notes'
+      extractor = DocumentationMemoryExtractor.new(options)
       extractor.list_git_notes
     else
+      options[:operation] = 'extract'
+      extractor = DocumentationMemoryExtractor.new(options)
       extractor.extract_and_store_memories
     end
   rescue => e
