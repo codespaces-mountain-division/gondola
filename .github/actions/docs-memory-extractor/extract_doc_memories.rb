@@ -13,17 +13,23 @@ require 'digest'
 class DocumentationMemoryExtractor
   def initialize(options = {})
     @github_token = ENV['GITHUB_TOKEN'] || options[:github_token]
+    @copilot_token = ENV['COPILOT_TOKEN'] || options[:copilot_token]
     
     # Debug token assignment
+    puts "🔍 Debug: ENV['GITHUB_TOKEN'] present: #{!ENV['GITHUB_TOKEN'].nil?}"
+    puts "🔍 Debug: ENV['GITHUB_TOKEN'] length: #{ENV['GITHUB_TOKEN']&.length || 'nil'}"
     puts "🔍 Debug: ENV['COPILOT_TOKEN'] present: #{!ENV['COPILOT_TOKEN'].nil?}"
     puts "🔍 Debug: ENV['COPILOT_TOKEN'] length: #{ENV['COPILOT_TOKEN']&.length || 'nil'}"
-    puts "🔍 Debug: options[:copilot_token] present: #{!options[:copilot_token].nil?}"
     puts "🔍 Debug: @github_token length: #{@github_token&.length || 'nil'}"
+    puts "🔍 Debug: @copilot_token length: #{@copilot_token&.length || 'nil'}"
     
-    @copilot_token = ENV['COPILOT_TOKEN'] || options[:copilot_token] || @github_token
+    # Use GitHub token for Copilot API as fallback only if no separate Copilot token
+    if !@copilot_token && @github_token
+      @copilot_token = @github_token
+      puts "🔍 Debug: Using GitHub token as Copilot token fallback"
+    end
     
     puts "🔍 Debug: Final @copilot_token length: #{@copilot_token&.length || 'nil'}"
-    puts "🔍 Debug: Tokens are same: #{@copilot_token == @github_token}"
     
     @repository = options[:repository]
     @commit_sha = options[:commit_sha]
@@ -70,6 +76,31 @@ class DocumentationMemoryExtractor
     store_git_note(note_content)
     
     output_summary(memories_by_file)
+  end
+
+  def get_git_note(commit_sha = nil, namespace = "documentation/memories")
+    sha = commit_sha || @commit_sha
+    
+    # Get the note as a file using Contents API
+    file_path = "notes/#{namespace}/#{sha}.md"
+    
+    file_response = github_api_request("GET", "/repos/#{@repository}/contents/#{file_path}")
+    
+    if file_response
+      puts "✅ Found git note file for commit #{sha}"
+      puts "📁 File path: #{file_path}"
+      
+      # Decode the content
+      content = Base64.decode64(file_response['content'])
+      
+      puts "📝 Note content:"
+      puts content
+      return content
+    end
+    
+    puts "⚠️  No git note found for commit #{sha} in namespace #{namespace}"
+    puts "🔍 Looked for: #{file_path}"
+    nil
   end
 
   private
@@ -311,17 +342,39 @@ class DocumentationMemoryExtractor
   end
 
   def store_git_note(note_content)
-    # TEMPORARILY DISABLED: GitHub API for git notes needs different approach
-    puts "📝 Would store this note content for commit #{@commit_sha}:"
-    puts "   (Git notes API call temporarily disabled for testing)"
+    # Store the note using GitHub's Contents API (simpler approach)
+    # Store as a file in a dedicated directory structure
+    file_path = "notes/documentation/memories/#{@commit_sha}.md"
     
-    # For now, just indicate success so we can test memory extraction
-    puts "✅ Memory extraction completed successfully"
-    puts "📝 Note content preview:"
-    puts note_content.lines.first(10).join
-    puts "..." if note_content.lines.length > 10
+    # Check if file already exists
+    existing_file = github_api_request("GET", "/repos/#{@repository}/contents/#{file_path}")
     
-    true # Return success for testing
+    file_data = {
+      message: "Add documentation memories for commit #{@commit_sha}",
+      content: Base64.strict_encode64(note_content)
+    }
+    
+    # If file exists, we need to provide the SHA for update
+    if existing_file
+      file_data[:sha] = existing_file['sha']
+      puts "📝 Updating existing note file"
+    else
+      puts "📝 Creating new note file"
+    end
+    
+    file_response = github_api_request("PUT", "/repos/#{@repository}/contents/#{file_path}", file_data)
+    
+    if file_response
+      puts "✅ Successfully stored git note for commit #{@commit_sha}"
+      puts "� Note stored as file: #{file_path}"
+      puts "🔗 Commit SHA: #{file_response['commit']['sha']}"
+      puts "🔗 Retrieve via: GET /repos/#{@repository}/contents/#{file_path}"
+    else
+      puts "⚠️  Failed to store git note"
+      return false
+    end
+    
+    true
   end
 
   def output_summary(memories_by_file)
@@ -362,6 +415,8 @@ class DocumentationMemoryExtractor
       Net::HTTP::Get.new(uri)
     when "POST"
       Net::HTTP::Post.new(uri)
+    when "PUT"
+      Net::HTTP::Put.new(uri)
     else
       raise "Unsupported method: #{method}"
     end
@@ -460,6 +515,10 @@ if __FILE__ == $0
       options[:exclude_patterns] = patterns
     end
     
+    opts.on("--get-note", "Retrieve and display git note for the specified commit") do
+      options[:get_note] = true
+    end
+    
     opts.on("-h", "--help", "Show this help message") do
       puts opts
       exit
@@ -468,7 +527,12 @@ if __FILE__ == $0
   
   begin
     extractor = DocumentationMemoryExtractor.new(options)
-    extractor.extract_and_store_memories
+    
+    if options[:get_note]
+      extractor.get_git_note
+    else
+      extractor.extract_and_store_memories
+    end
   rescue => e
     puts "❌ Error: #{e.message}"
     exit 1
