@@ -1,6 +1,6 @@
 # Posts Feature Guide
 
-This Rails application includes a complete blog post management system. This is only accessible to team members with the "Privateer" or "Pirate" roles. Here's how it works:
+This Rails application includes a complete blog post management system. This is only accessible to team members with the "Privateer" or "Pirate" roles in the role group. Here's how it works:
 
 ## Overview
 
