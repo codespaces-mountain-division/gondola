@@ -81,26 +81,63 @@ class DocumentationMemoryExtractor
   def get_git_note(commit_sha = nil, namespace = "documentation/memories")
     sha = commit_sha || @commit_sha
     
-    # Get the note as a file using Contents API
-    file_path = "notes/#{namespace}/#{sha}.md"
+    puts "🔍 Looking for git note for commit #{sha} in namespace #{namespace}"
     
-    file_response = github_api_request("GET", "/repos/#{@repository}/contents/#{file_path}")
+    # Use git notes show command
+    git_cmd = "git notes --ref=#{namespace} show #{sha} 2>&1"
+    puts "🔍 Debug: Running git command: #{git_cmd}"
     
-    if file_response
-      puts "✅ Found git note file for commit #{sha}"
-      puts "📁 File path: #{file_path}"
-      
-      # Decode the content
-      content = Base64.decode64(file_response['content'])
-      
+    result = `#{git_cmd}`
+    exit_code = $?.exitstatus
+    
+    if exit_code == 0
+      puts "✅ Found git note for commit #{sha}"
       puts "📝 Note content:"
-      puts content
-      return content
+      puts result
+      return result
+    else
+      puts "⚠️  No git note found for commit #{sha} in namespace #{namespace}"
+      puts "🔍 Git output: #{result.strip}" if result && !result.strip.empty?
+      return nil
     end
+  end
+
+  def has_git_note?(commit_sha = nil, namespace = "documentation/memories")
+    sha = commit_sha || @commit_sha
     
-    puts "⚠️  No git note found for commit #{sha} in namespace #{namespace}"
-    puts "🔍 Looked for: #{file_path}"
-    nil
+    # Check if a git note exists for the commit
+    git_cmd = "git notes --ref=#{namespace} show #{sha} 2>/dev/null"
+    result = `#{git_cmd}`
+    exit_code = $?.exitstatus
+    
+    if exit_code == 0
+      puts "✅ Git note exists for commit #{sha}"
+      return true
+    else
+      puts "❌ No git note found for commit #{sha}"
+      return false
+    end
+  end
+
+  def list_git_notes(namespace = "documentation/memories")
+    puts "📋 Listing all git notes in namespace: #{namespace}"
+    
+    # List all notes in the namespace
+    git_cmd = "git notes --ref=#{namespace} list 2>&1"
+    result = `#{git_cmd}`
+    exit_code = $?.exitstatus
+    
+    if exit_code == 0 && !result.strip.empty?
+      puts "✅ Found git notes:"
+      result.lines.each_with_index do |line, index|
+        note_sha, commit_sha = line.strip.split(' ')
+        puts "  #{index + 1}. Commit: #{commit_sha} (Note: #{note_sha})"
+      end
+      return result.lines.map(&:strip)
+    else
+      puts "ℹ️  No git notes found in namespace #{namespace}"
+      return []
+    end
   end
 
   private
@@ -342,35 +379,44 @@ class DocumentationMemoryExtractor
   end
 
   def store_git_note(note_content)
-    # Store the note using GitHub's Contents API (simpler approach)
-    # Store as a file in a dedicated directory structure
-    file_path = "notes/documentation/memories/#{@commit_sha}.md"
+    # Store as actual git notes using git commands
+    namespace = "documentation/memories"
     
-    # Check if file already exists
-    existing_file = github_api_request("GET", "/repos/#{@repository}/contents/#{file_path}")
+    puts "📝 Creating git note in namespace: #{namespace}"
     
-    file_data = {
-      message: "Add documentation memories for commit #{@commit_sha}",
-      content: Base64.strict_encode64(note_content)
-    }
+    # Write note content to a temporary file
+    temp_file = "/tmp/git_note_#{@commit_sha}"
+    File.write(temp_file, note_content)
     
-    # If file exists, we need to provide the SHA for update
-    if existing_file
-      file_data[:sha] = existing_file['sha']
-      puts "📝 Updating existing note file"
-    else
-      puts "📝 Creating new note file"
-    end
+    # Use git notes add command
+    git_cmd = "git notes --ref=#{namespace} add -F #{temp_file} #{@commit_sha} 2>&1"
+    puts "🔍 Debug: Running git command: #{git_cmd}"
     
-    file_response = github_api_request("PUT", "/repos/#{@repository}/contents/#{file_path}", file_data)
+    result = `#{git_cmd}`
+    exit_code = $?.exitstatus
     
-    if file_response
+    # Clean up temp file
+    File.delete(temp_file) if File.exist?(temp_file)
+    
+    if exit_code == 0
       puts "✅ Successfully stored git note for commit #{@commit_sha}"
-      puts "� Note stored as file: #{file_path}"
-      puts "🔗 Commit SHA: #{file_response['commit']['sha']}"
-      puts "🔗 Retrieve via: GET /repos/#{@repository}/contents/#{file_path}"
+      puts "📝 Note stored in namespace: #{namespace}"
+      puts "� Retrieve via: git notes --ref=#{namespace} show #{@commit_sha}"
+      
+      # Try to push the notes to remote
+      push_cmd = "git push origin refs/notes/#{namespace} 2>&1"
+      puts "🔍 Debug: Pushing notes: #{push_cmd}"
+      push_result = `#{push_cmd}`
+      push_exit_code = $?.exitstatus
+      
+      if push_exit_code == 0
+        puts "✅ Successfully pushed git notes to remote"
+      else
+        puts "⚠️  Failed to push git notes to remote: #{push_result}"
+        puts "ℹ️  Note is stored locally but may not be visible in GitHub UI"
+      end
     else
-      puts "⚠️  Failed to store git note"
+      puts "⚠️  Failed to store git note: #{result}"
       return false
     end
     
@@ -519,6 +565,14 @@ if __FILE__ == $0
       options[:get_note] = true
     end
     
+    opts.on("--check-note", "Check if a git note exists for the specified commit") do
+      options[:check_note] = true
+    end
+    
+    opts.on("--list-notes", "List all git notes in the documentation/memories namespace") do
+      options[:list_notes] = true
+    end
+    
     opts.on("-h", "--help", "Show this help message") do
       puts opts
       exit
@@ -530,6 +584,16 @@ if __FILE__ == $0
     
     if options[:get_note]
       extractor.get_git_note
+    elsif options[:check_note]
+      if extractor.has_git_note?
+        puts "✅ Git note exists for commit #{options[:commit_sha] || 'HEAD'}"
+        exit 0
+      else
+        puts "❌ No git note found for commit #{options[:commit_sha] || 'HEAD'}"
+        exit 1
+      end
+    elsif options[:list_notes]
+      extractor.list_git_notes
     else
       extractor.extract_and_store_memories
     end
