@@ -11,7 +11,8 @@ This platform allows authors to write, edit, and publish posts with a simple and
 
 Stay tuned for more exciting content!",
     author: "Admin",
-    published_at: 1.day.ago
+    published_at: 1.day.ago,
+    labels: ["welcome", "announcement", "blog"]
   },
   {
     title: "Getting Started with Rails",
@@ -25,7 +26,8 @@ Here are some key benefits of Rails:
 
 Whether you're building a simple blog or a complex web application, Rails provides the tools you need to get started quickly.",
     author: "Developer",
-    published_at: 2.hours.ago
+    published_at: 2.hours.ago,
+    labels: ["rails", "tutorial", "programming", "web-development"]
   },
   {
     title: "Draft Post Example",
@@ -37,7 +39,8 @@ Draft posts are useful for:
 - Scheduling future content
 
 You can easily publish this post when you're ready!",
-    author: "Content Writer"
+    author: "Content Writer",
+    labels: ["draft", "example"]
     # Note: no published_at date, so this remains a draft
   }
 ])
