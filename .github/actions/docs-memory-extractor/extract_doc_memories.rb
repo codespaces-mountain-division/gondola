@@ -384,12 +384,27 @@ class DocumentationMemoryExtractor
     
     puts "📝 Creating git note in namespace: #{namespace}"
     
+    # Configure git identity for GitHub Actions environment
+    configure_git_identity
+    
     # Write note content to a temporary file
     temp_file = "/tmp/git_note_#{@commit_sha}"
     File.write(temp_file, note_content)
     
-    # Use git notes add command
-    git_cmd = "git notes --ref=#{namespace} add -F #{temp_file} #{@commit_sha} 2>&1"
+    # Check if a note already exists for this commit
+    existing_note_cmd = "git notes --ref=#{namespace} show #{@commit_sha} 2>/dev/null"
+    existing_note_result = `#{existing_note_cmd}`
+    note_exists = $?.exitstatus == 0
+    
+    # Use appropriate git notes command
+    if note_exists
+      puts "ℹ️  Note already exists for commit, updating..."
+      git_cmd = "git notes --ref=#{namespace} add -f -F #{temp_file} #{@commit_sha} 2>&1"
+    else
+      puts "📝 Creating new note..."
+      git_cmd = "git notes --ref=#{namespace} add -F #{temp_file} #{@commit_sha} 2>&1"
+    end
+    
     puts "🔍 Debug: Running git command: #{git_cmd}"
     
     result = `#{git_cmd}`
@@ -401,7 +416,7 @@ class DocumentationMemoryExtractor
     if exit_code == 0
       puts "✅ Successfully stored git note for commit #{@commit_sha}"
       puts "📝 Note stored in namespace: #{namespace}"
-      puts "� Retrieve via: git notes --ref=#{namespace} show #{@commit_sha}"
+      puts "🔗 Retrieve via: git notes --ref=#{namespace} show #{@commit_sha}"
       
       # Try to push the notes to remote
       push_cmd = "git push origin refs/notes/#{namespace} 2>&1"
@@ -421,6 +436,28 @@ class DocumentationMemoryExtractor
     end
     
     true
+  end
+
+  def configure_git_identity
+    # Check if git identity is already configured (local repo only)
+    user_name = `git config --local user.name 2>/dev/null`.strip
+    user_email = `git config --local user.email 2>/dev/null`.strip
+    
+    if user_name.empty? || user_email.empty?
+      puts "🔧 Configuring git identity for GitHub Actions..."
+      
+      # Use GitHub Actions bot identity
+      name = "github-actions[bot]"
+      email = "github-actions[bot]@users.noreply.github.com"
+      
+      # Set local git configuration (only for this repo)
+      `git config --local user.name "#{name}"`
+      `git config --local user.email "#{email}"`
+      
+      puts "✅ Git identity configured: #{name} <#{email}>"
+    else
+      puts "✅ Git identity already configured: #{user_name} <#{user_email}>"
+    end
   end
 
   def output_summary(memories_by_file)
