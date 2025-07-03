@@ -68,6 +68,14 @@ class DocumentationMemoryExtractor
     raise "Repository is required" unless @repository
     raise "Commit SHA is required" unless @commit_sha
     raise "Copilot token is required" unless @copilot_token
+    
+    # Additional token validation
+    if @copilot_token&.include?("\n") || @copilot_token&.include?(" ")
+      puts "⚠️  Warning: Copilot token contains whitespace or newlines"
+      @copilot_token = @copilot_token.strip
+    end
+    
+    puts "🔍 Token validation: #{@copilot_token&.length || 0} characters"
   end
 
   def parse_patterns(patterns_string)
@@ -372,11 +380,18 @@ class DocumentationMemoryExtractor
   def copilot_api_request(prompt)
     uri = URI('https://api.githubcopilot.com/chat/completions')
     
+    # Debug token format
+    puts "🔍 Debug: Token length: #{@copilot_token&.length || 'nil'}"
+    
+    # Clean the token of any whitespace
+    clean_token = @copilot_token&.strip
+    puts "🔍 Debug: Cleaned token length: #{clean_token&.length || 'nil'}"
+    
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = true
     
     request = Net::HTTP::Post.new(uri)
-    request['Authorization'] = "Bearer #{@copilot_token}"
+    request['Authorization'] = "Bearer #{clean_token}"
     request['Content-Type'] = 'application/json'
     request['Copilot-Integration-Id'] = 'playground-dev'
     
