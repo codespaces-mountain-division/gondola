@@ -1,0 +1,1 @@
+{"commit_sha":"697226b2cc428491faafb4f4a38b8dd9bee3e89d","extracted_at":"2025-07-03T20:52:07+00:00","memories":[{"type":"context","content":"This is a test memory extraction to verify the git notes workflow is working.","confidence":0.9},{"type":"factual","content":"The POSTS_GUIDE.md file contains information about blog post access permissions.","confidence":0.8}]}
