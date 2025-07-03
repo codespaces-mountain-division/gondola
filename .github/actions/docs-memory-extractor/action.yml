@@ -45,6 +45,3 @@ runs:
           --commit-sha "${{ inputs.commit-sha }}" \
           --docs-patterns "${{ inputs.docs-patterns }}" \
           --exclude-patterns "${{ inputs.exclude-patterns }}"
-      env:
-        GITHUB_TOKEN: ${{ github.token }}
-        COPILOT_TOKEN: ${{ github.token }}
