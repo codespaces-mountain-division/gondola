@@ -158,3 +158,4 @@ Potential improvements could include:
 - SEO-friendly URLs (slugs)
 - Post scheduling
 - Search functionality
+- Comments on posts
