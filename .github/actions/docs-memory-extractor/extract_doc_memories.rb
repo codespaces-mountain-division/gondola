@@ -418,6 +418,20 @@ class DocumentationMemoryExtractor
       puts "📝 Note stored in namespace: #{namespace}"
       puts "🔗 Retrieve via: git notes --ref=#{namespace} show #{@commit_sha}"
       
+      # Fetch remote notes first to avoid conflicts
+      puts "🔄 Fetching remote git notes..."
+      fetch_cmd = "git fetch origin +refs/notes/#{namespace}:refs/notes/#{namespace} 2>&1"
+      puts "🔍 Debug: Fetching notes: #{fetch_cmd}"
+      fetch_result = `#{fetch_cmd}`
+      fetch_exit_code = $?.exitstatus
+      
+      if fetch_exit_code == 0
+        puts "✅ Successfully fetched remote git notes"
+      else
+        puts "ℹ️  No remote git notes to fetch (or fetch failed): #{fetch_result.strip}"
+        # This is not necessarily an error - might be the first note or a conflict
+      end
+      
       # Try to push the notes to remote
       push_cmd = "git push origin refs/notes/#{namespace} 2>&1"
       puts "🔍 Debug: Pushing notes: #{push_cmd}"
@@ -428,7 +442,24 @@ class DocumentationMemoryExtractor
         puts "✅ Successfully pushed git notes to remote"
       else
         puts "⚠️  Failed to push git notes to remote: #{push_result}"
-        puts "ℹ️  Note is stored locally but may not be visible in GitHub UI"
+        
+        # If push failed due to non-fast-forward, try force push
+        if push_result.include?("rejected") && push_result.include?("fetch first")
+          puts "🔄 Attempting force push to resolve conflicts..."
+          force_push_cmd = "git push --force origin refs/notes/#{namespace} 2>&1"
+          puts "🔍 Debug: Force pushing notes: #{force_push_cmd}"
+          force_push_result = `#{force_push_cmd}`
+          force_push_exit_code = $?.exitstatus
+          
+          if force_push_exit_code == 0
+            puts "✅ Successfully force-pushed git notes to remote"
+          else
+            puts "⚠️  Force push also failed: #{force_push_result}"
+            puts "ℹ️  Note is stored locally but may not be visible in GitHub UI"
+          end
+        else
+          puts "ℹ️  Note is stored locally but may not be visible in GitHub UI"
+        end
       end
     else
       puts "⚠️  Failed to store git note: #{result}"
